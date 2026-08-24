@@ -312,9 +312,16 @@
         <div class="form-group"><label>Folio de Venta (POS)</label><input type="text" id="folioVenta" placeholder="Ej. A222180"></div>
         <div class="form-group">
           <label>Destino del Pedido</label>
-          <select id="destinoPedido">
+          <select id="destinoPedido" onchange="toggleCampoSinDiseno()">
             <option value="Taller">🏭 Taller (producción interna)</option>
             <option value="Maquila">🧵 Maquila (bordado externo)</option>
+          </select>
+        </div>
+        <div class="form-group" id="grupoSinDiseno">
+          <label>¿Requiere Diseño?</label>
+          <select id="requiereDiseno">
+            <option value="si">Sí, pasa por Diseño</option>
+            <option value="no">No, enviar directo a Producción (material ya definido)</option>
           </select>
         </div>
         <div class="form-group"><label>Producto y Técnica</label><input type="text" id="productoTecnica" required></div>
@@ -573,29 +580,63 @@
       let esTerminado = (t.estatus === 'Terminado');
       let claseBtn = esMobile ? "mobile-action-btn" : "desktop-action-btn";
 
+      const disabledBtn = (iconoMobile, textoDesktop) => `<button class="${claseBtn}" style="cursor:not-allowed; ${esMobile ? 'background:#b8b8b8;' : 'background:#eee;'}" disabled>${esMobile ? iconoMobile : textoDesktop}</button>`;
+      const accionBtn = (iconoMobile, textoDesktop, estiloMobile, estiloDesktop) => `<button class="${claseBtn}" ${esMobile ? (estiloMobile || '') : (estiloDesktop || '')} onclick="accionRapidaBadge('${t.id}')">${esMobile ? iconoMobile : textoDesktop}</button>`;
+
       if (esBordadoPendiente && sesionActual.rol === 'Bordados') {
-        return `<button class="${claseBtn}" onclick="abrirModalDisenador('${t.id}')">${esMobile ? '🧵' : '🧵 Terminar Bordado'}</button>`;
+        return accionBtn('🧵', '🧵 Terminar Bordado');
       }
       if (esRecoleccion && (sesionActual.rol === 'Vendedor' || sesionActual.rol === 'Administrador')) {
-        return `<button class="${claseBtn}" ${esMobile ? 'style="background:#8e44ad;"' : 'style="background:#f4ecf7; color:#8e44ad;"'} onclick="abrirModalEstatusRapido('${t.id}', 'Recibido en Tienda')">${esMobile ? '📥' : '📥 Recibir en Tienda'}</button>`;
+        return accionBtn('📥', '📥 Recibir en Tienda', 'style="background:#8e44ad;"', 'style="background:#f4ecf7; color:#8e44ad;"');
       }
       if (esTerminado && (sesionActual.rol === 'Vendedor' || sesionActual.rol === 'Administrador')) {
-        return `<button class="${claseBtn}" ${esMobile ? 'style="background:#27ae60;"' : 'style="background:#eafaf1; color:#27ae60;"'} onclick="abrirModalEstatusRapido('${t.id}', 'Entregado al Cliente')">${esMobile ? '📦' : '📦 Entregar al Cliente'}</button>`;
+        return accionBtn('📦', '📦 Entregar al Cliente', 'style="background:#27ae60;"', 'style="background:#eafaf1; color:#27ae60;"');
       }
       if (t.destino === 'Maquila' && (esBordadoPendiente || esRecoleccion) && (sesionActual.rol === 'Diseñador' || sesionActual.rol === 'Jefe de Taller')) {
-        return `<button class="${claseBtn}" style="cursor:not-allowed; ${esMobile ? 'background:#7f7f7f;' : 'background:#eee;'}" disabled>${esMobile ? '🔒' : '🔒 Solo Lectura'}</button>`;
+        return disabledBtn('🔒', '🔒 Solo Lectura');
       }
       if (t.estatus === "Entregado") {
-        return `<button class="${claseBtn}" style="cursor:not-allowed; ${esMobile ? 'background:#b8b8b8;' : 'background:#eee;'}" disabled>${esMobile ? '✅' : '✅ Finalizado'}</button>`;
+        return disabledBtn('✅', '✅ Finalizado');
       }
-      if (sesionActual.rol === "Diseñador" || sesionActual.rol === "Jefe de Taller" || sesionActual.rol === "Administrador") {
-        return `<button class="${claseBtn}" onclick="abrirModalDisenador('${t.id}')">${esMobile ? '⚙️' : '⚙️ Gestionar'}</button>`;
+
+      // Jefe de Taller: no edita tickets, solo confirma que la producción quedó terminada.
+      if (sesionActual.rol === "Jefe de Taller") {
+        if (esTerminado) return disabledBtn('✅', '✅ Terminado');
+        return accionBtn('✅', '✅ Marcar Terminado', 'style="background:#27ae60;"', 'style="background:#eafaf1; color:#27ae60;"');
+      }
+
+      if (sesionActual.rol === "Diseñador" || sesionActual.rol === "Administrador") {
+        return accionBtn('⚙️', '⚙️ Gestionar');
       }
       if (sesionActual.rol === "Vendedor") {
-        return `<button class="${claseBtn}" onclick="prepararEdicion('${t.id}')">${esMobile ? '✏️' : '✏️ Editar'}</button>`;
+        return accionBtn('✏️', '✏️ Editar');
       }
       return ``;
     }
+
+    // Punto único de decisión: qué pasa cuando alguien toca/hace clic en un ticket
+    // (botón de acción, badge tocable en móvil, o swipe). Así el badge y el botón
+    // siempre disparan exactamente la misma acción, sin lógica duplicada.
+    function accionRapidaBadge(id) {
+      let t = ticketsGlobal.find(x => x.id === id); if (!t) return;
+      let esBordadoPendiente = (t.destino === 'Maquila' && t.estatus === 'Nuevo / Pendiente Bordado');
+      let esRecoleccion = (t.estatus === 'Terminado Pendiente de Recolección');
+      let esTerminado = (t.estatus === 'Terminado');
+
+      if (esBordadoPendiente && sesionActual.rol === 'Bordados') { abrirModalDisenador(id); return; }
+      if (esRecoleccion && (sesionActual.rol === 'Vendedor' || sesionActual.rol === 'Administrador')) { abrirModalEstatusRapido(id, 'Recibido en Tienda'); return; }
+      if (esTerminado && (sesionActual.rol === 'Vendedor' || sesionActual.rol === 'Administrador')) { abrirModalEstatusRapido(id, 'Entregado al Cliente'); return; }
+      if (t.destino === 'Maquila' && (esBordadoPendiente || esRecoleccion) && (sesionActual.rol === 'Diseñador' || sesionActual.rol === 'Jefe de Taller')) { return; }
+      if (t.estatus === "Entregado") { return; }
+      if (sesionActual.rol === "Jefe de Taller") {
+        if (esTerminado) return;
+        abrirModalEstatusRapido(id, 'Marcar Terminado');
+        return;
+      }
+      if (sesionActual.rol === "Diseñador" || sesionActual.rol === "Administrador") { abrirModalDisenador(id); return; }
+      if (sesionActual.rol === "Vendedor") { prepararEdicion(id); return; }
+    }
+
 
     function claseBadgePorEstatus(estatus) {
       let clase = "bg-nuevo";
@@ -638,7 +679,7 @@
                 <div class="mov-producto">${ticket.productoTecnica}</div>
               </div>
               <div class="movimiento-right">
-                <span class="badge ${claseColor}">${ticket.estatus}</span>
+                <span class="badge ${claseColor}" style="cursor:pointer;" onclick="accionRapidaBadge('${ticket.id}')" title="Toca para gestionar">${ticket.estatus}</span>
                 <div class="movimiento-accion-desktop">${botonDesktop}</div>
               </div>
             </div>
@@ -769,29 +810,52 @@
       }
 
       listaFiltrada.forEach(t => {
-        let imagenesHtml = "<strong>Referencias Vendedor:</strong><div class='gallery-images'>";
-        if (t.urlImagen) {
-          t.urlImagen.split("\n").forEach(l => {
-            if(l.trim() !== "") {
-              let urlImg = l.includes("drive.google.com") ? l.replace("/view?usp=drivesdk", "").replace("/edit?usp=sharing", "") + "/preview" : l;
-              imagenesHtml += `<iframe src="${urlImg}" frameborder="0"></iframe>`;
-            }
-          });
-        } else { imagenesHtml += "<p>Sin imágenes.</p>"; }
-        imagenesHtml += "</div>";
+        // El Jefe de Taller normalmente no necesita ver referencias del vendedor ni mockups de diseño
+        // (eso es trabajo de Diseño). Excepción: tickets marcados "Sin Diseño" (van directo a producción),
+        // ahí sí necesita ver la foto de referencia del vendedor porque no habrá mockup.
+        let esJefeTaller = sesionActual.rol === "Jefe de Taller";
+        // El Jefe de Taller sí necesita ver el mockup de Diseño (para producir a partir de él).
+        // Lo que NO necesita ver son las fotos de referencia del vendedor — salvo que el ticket
+        // se haya saltado el diseño y vaya directo a producción, ahí la foto del vendedor es su única referencia.
+        let mostrarFotosVendedor = !esJefeTaller || t.sinDiseno === true;
+        let mostrarMockups = true;
 
-        let mockupsHtml = "<strong>Mockups / Archivos de Diseño:</strong><div class='gallery-images'>";
-        if (t.urlMockup) {
-          t.urlMockup.split("\n").forEach(l => {
-            if(l.trim() !== "" && !l.includes("---")) {
-              let urlM = l.includes("drive.google.com") ? l.replace("/view?usp=drivesdk", "").replace("/edit?usp=sharing", "") + "/preview" : l;
-              mockupsHtml += `<iframe src="${urlM}" frameborder="0"></iframe>`;
-            } else if(l.includes("---")) {
-              mockupsHtml += `<p style="width:100%; font-size:0.85em; color:#d35400; margin:5px 0;">${l}</p>`;
-            }
-          });
-        } else { mockupsHtml += "<p style='color:#888;'>Aún sin mockup generado.</p>"; }
-        mockupsHtml += "</div>";
+        let imagenesHtml = "";
+        if (mostrarFotosVendedor) {
+          imagenesHtml = "<strong>Referencias Vendedor:</strong><div class='gallery-images'>";
+          if (t.urlImagen) {
+            t.urlImagen.split("\n").forEach(l => {
+              if(l.trim() !== "") {
+                let urlImg = l.includes("drive.google.com") ? l.replace("/view?usp=drivesdk", "").replace("/edit?usp=sharing", "") + "/preview" : l;
+                imagenesHtml += `<iframe src="${urlImg}" frameborder="0"></iframe>`;
+              }
+            });
+          } else { imagenesHtml += "<p>Sin imágenes.</p>"; }
+          imagenesHtml += "</div>";
+        }
+
+        let mockupsHtml = "";
+        if (mostrarMockups) {
+          mockupsHtml = "<strong>Mockups / Archivos de Diseño:</strong><div class='gallery-images'>";
+          let pieDeFotoMockup = [];
+          if (t.urlMockup) {
+            t.urlMockup.split("\n").forEach(l => {
+              if (l.trim() === "") return;
+              if (l.includes("---")) {
+                // El timestamp/encabezado de actualización se guarda aparte y se muestra como
+                // pie de foto AL FINAL de la galería, para no romper la fila de imágenes.
+                pieDeFotoMockup.push(l.replace(/-{2,}/g, "").trim());
+              } else {
+                let urlM = l.includes("drive.google.com") ? l.replace("/view?usp=drivesdk", "").replace("/edit?usp=sharing", "") + "/preview" : l;
+                mockupsHtml += `<iframe src="${urlM}" frameborder="0"></iframe>`;
+              }
+            });
+          } else { mockupsHtml += "<p style='color:#888;'>Aún sin mockup generado.</p>"; }
+          mockupsHtml += "</div>";
+          if (pieDeFotoMockup.length > 0) {
+            mockupsHtml += `<p style="font-size:0.8em; color:#999; font-style:italic; margin:2px 0 15px 0;">${pieDeFotoMockup.join(" · ")}</p>`;
+          }
+        }
 
         let botonAtenderHTML = generarBotonesAccion(t, false);
         if (botonAtenderHTML === "") botonAtenderHTML = `<p style="color:#888; font-size:0.9em;">Sin acciones.</p>`;
@@ -825,11 +889,18 @@
     // =========================================================================
     // MODALES Y GESTIÓN
     // =========================================================================
+    function toggleCampoSinDiseno() {
+      let esMaquila = document.getElementById('destinoPedido').value === 'Maquila';
+      document.getElementById('grupoSinDiseno').style.display = esMaquila ? 'none' : 'block';
+    }
+
     function abrirModalTicket() {
       document.getElementById('formTicket').reset(); document.getElementById('ticketId').value = "";
       document.getElementById('modalTitulo').innerText = "Registrar Nuevo Pedido";
       document.getElementById('infoEdicion').style.display = "none";
       document.getElementById('archivoImagen').required = true;
+      document.getElementById('requiereDiseno').value = "si";
+      toggleCampoSinDiseno();
       document.getElementById('modalTicket').style.display = 'flex';
       document.getElementById('sidebar').classList.remove('open');
       document.getElementById('sidebarOverlay').classList.remove('active');
@@ -844,6 +915,8 @@
       document.getElementById('cantidad').value = t.cantidad;
       document.getElementById('folioVenta').value = t.folioVenta || "";
       if(t.destino) document.getElementById('destinoPedido').value = t.destino;
+      document.getElementById('requiereDiseno').value = t.sinDiseno ? "no" : "si";
+      toggleCampoSinDiseno();
       if(t.fechaEntrega) {
         let f = new Date(t.fechaEntrega); f.setMinutes(f.getMinutes() + f.getTimezoneOffset());
         document.getElementById('fechaEntrega').value = f.toISOString().split('T')[0];
@@ -894,10 +967,13 @@
       document.getElementById('modalDiseno').style.display = 'flex';
     }
 
-    let rapidoTicketId = null, rapidoEstatusDestino = null;
+    let rapidoTicketId = null, rapidoEstatusDestino = null, rapidoNotaAuto = null;
     function abrirModalEstatusRapido(id, estatusDestino) {
       let t = ticketsGlobal.find(x => x.id === id); if(!t) return;
-      rapidoTicketId = t.id; rapidoEstatusDestino = (estatusDestino === 'Recibido en Tienda') ? 'Terminado' : 'Entregado';
+      rapidoTicketId = t.id;
+      if (estatusDestino === 'Recibido en Tienda') { rapidoEstatusDestino = 'Terminado'; rapidoNotaAuto = "Bordado recibido en tienda."; }
+      else if (estatusDestino === 'Marcar Terminado') { rapidoEstatusDestino = 'Terminado'; rapidoNotaAuto = "Producción terminada en taller."; }
+      else { rapidoEstatusDestino = 'Entregado'; rapidoNotaAuto = "Entregado al cliente."; }
       
       document.getElementById('rapidoId').innerText = t.id;
       document.getElementById('rapidoCliente').innerText = t.cliente;
@@ -905,7 +981,7 @@
       document.getElementById('rapidoBadgeActual').className = "badge " + claseBadgePorEstatus(t.estatus);
       
       let btn = document.getElementById('btnRapidoConfirmar');
-      btn.innerText = (estatusDestino === 'Recibido en Tienda') ? 'Confirmar Recepción' : 'Confirmar Entrega';
+      btn.innerText = (estatusDestino === 'Recibido en Tienda') ? 'Confirmar Recepción' : (estatusDestino === 'Marcar Terminado') ? 'Confirmar Terminado' : 'Confirmar Entrega';
       btn.disabled = false;
       document.getElementById('modalEstatusRapido').style.display = 'flex';
     }
@@ -913,7 +989,7 @@
     async function confirmarEstatusRapido() {
       let btn = document.getElementById('btnRapidoConfirmar');
       let txt = btn.innerText; btn.innerText = "Procesando..."; btn.disabled = true;
-      let datos = { id: rapidoTicketId, notasDisenador: (rapidoEstatusDestino==='Terminado')?"Bordado recibido en tienda.":"Entregado al cliente.", estatusDestino: rapidoEstatusDestino, archivos: [] };
+      let datos = { id: rapidoTicketId, notasDisenador: rapidoNotaAuto, estatusDestino: rapidoEstatusDestino, archivos: [] };
       try {
         let res = await llamarAPI('procesarTicketDiseno', datos);
         btn.disabled = false; btn.innerText = txt;
@@ -963,7 +1039,8 @@
           id: idTicket, cliente: document.getElementById('cliente').value, cantidad: document.getElementById('cantidad').value,
           fechaEntrega: document.getElementById('fechaEntrega').value, folioVenta: document.getElementById('folioVenta').value,
           destino: document.getElementById('destinoPedido').value, productoTecnica: document.getElementById('productoTecnica').value,
-          notasVendedor: document.getElementById('notasVendedor').value, archivos: archivos
+          notasVendedor: document.getElementById('notasVendedor').value, archivos: archivos,
+          sinDiseno: (document.getElementById('requiereDiseno').value === 'no')
         };
         let accion = idTicket ? "actualizarTicket" : "registrarNuevoTicket";
         
