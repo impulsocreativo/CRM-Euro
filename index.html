@@ -461,17 +461,30 @@
       mensajeria = firebase.messaging();
     } catch (e) { console.error("Firebase no se pudo inicializar (navegador sin soporte, o error de red):", e); }
 
+    const LS_FCM_TOKEN = "crmEuroFcmToken";
+
+    function actualizarBotonNotificaciones() {
+      let btn = document.getElementById('btnActivarNotificaciones');
+      if (!btn) return;
+      let tokenGuardado = localStorage.getItem(LS_FCM_TOKEN);
+      btn.disabled = false;
+      if (tokenGuardado) { btn.innerText = "🔕 Desactivar Notificaciones"; btn.dataset.activo = "true"; }
+      else { btn.innerText = "🔔 Activar Notificaciones"; btn.dataset.activo = "false"; }
+    }
+
     async function activarNotificaciones() {
       let btn = document.getElementById('btnActivarNotificaciones');
-      if (!mensajeria) { mostrarAviso("Atención", "Este navegador no soporta notificaciones push.", true); return; }
       if (!sesionActual) return;
 
+      if (btn.dataset.activo === "true") { await desactivarNotificaciones(); return; }
+
+      if (!mensajeria) { mostrarAviso("Atención", "Este navegador no soporta notificaciones push.", true); return; }
       btn.innerText = "Activando..."; btn.disabled = true;
       try {
         let permiso = await Notification.requestPermission();
         if (permiso !== 'granted') {
           mostrarAviso("Atención", "No se otorgó permiso de notificaciones.", true);
-          btn.innerText = "🔔 Activar Notificaciones"; btn.disabled = false;
+          actualizarBotonNotificaciones();
           return;
         }
         let registro = await navigator.serviceWorker.register('firebase-messaging-sw.js');
@@ -479,16 +492,38 @@
         if (!token) throw new Error("No se pudo generar el token de notificación.");
 
         let res = await llamarAPI('guardarSuscripcion', { usuario: sesionActual.usuario, rol: sesionActual.rol, token: token });
-        btn.innerText = "🔔 Activar Notificaciones"; btn.disabled = false;
         if (res.exito) {
-          btn.innerText = "🔔 Notificaciones Activas";
+          localStorage.setItem(LS_FCM_TOKEN, token);
+          actualizarBotonNotificaciones();
           mostrarAviso("Listo", "Vas a recibir notificaciones para tu rol (" + sesionActual.rol + ") en este dispositivo.");
         } else {
+          actualizarBotonNotificaciones();
           mostrarAviso("Atención", res.mensaje, true);
         }
       } catch (err) {
-        btn.innerText = "🔔 Activar Notificaciones"; btn.disabled = false;
+        actualizarBotonNotificaciones();
         mostrarAviso("Error", "No se pudieron activar las notificaciones: " + err.message, true);
+      }
+    }
+
+    async function desactivarNotificaciones() {
+      let btn = document.getElementById('btnActivarNotificaciones');
+      let tokenGuardado = localStorage.getItem(LS_FCM_TOKEN);
+      btn.innerText = "Desactivando..."; btn.disabled = true;
+      try {
+        if (mensajeria && tokenGuardado) {
+          try { await mensajeria.deleteToken(); } catch(e) { /* seguimos aunque falle borrar del lado del navegador */ }
+        }
+        if (tokenGuardado) {
+          await llamarAPI('eliminarSuscripcion', { token: tokenGuardado });
+        }
+        localStorage.removeItem(LS_FCM_TOKEN);
+        actualizarBotonNotificaciones();
+        mostrarAviso("Listo", "Notificaciones desactivadas en este dispositivo.");
+      } catch (err) {
+        localStorage.removeItem(LS_FCM_TOKEN);
+        actualizarBotonNotificaciones();
+        mostrarAviso("Atención", "Se desactivaron localmente, pero hubo un error avisando al servidor: " + err.message, true);
       }
     }
 
@@ -598,6 +633,7 @@
 
           document.getElementById('loginScreen').style.display = 'none';
           document.getElementById('appScreen').style.display = 'flex';
+          actualizarBotonNotificaciones();
           cargarDatosDashboard();
         } else {
           msg.innerText = res ? res.mensaje : "Error desconocido al validar.";
