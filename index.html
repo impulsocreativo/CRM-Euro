@@ -490,6 +490,21 @@
     try {
       firebase.initializeApp(firebaseConfig);
       mensajeria = firebase.messaging();
+      // Cuando la pestaña está ABIERTA Y ENFOCADA, Firebase no pasa por el Service Worker
+      // (eso solo ocurre en segundo plano) — sin esto, la notificación llega pero nadie la muestra.
+      mensajeria.onMessage(function(payload) {
+        let titulo = (payload.notification && payload.notification.title) || "CRM Euro";
+        let cuerpo = (payload.notification && payload.notification.body) || "";
+        if (Notification.permission === 'granted') {
+          navigator.serviceWorker.getRegistration().then(function(registro) {
+            if (registro) {
+              registro.showNotification(titulo, { body: cuerpo, icon: 'assets/icon-192.png', badge: 'assets/favicon-96.png' });
+            } else {
+              new Notification(titulo, { body: cuerpo });
+            }
+          });
+        }
+      });
     } catch (e) { console.error("Firebase no se pudo inicializar (navegador sin soporte, o error de red):", e); }
 
     const LS_FCM_TOKEN = "crmEuroFcmToken";

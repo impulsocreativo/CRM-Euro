@@ -26,7 +26,7 @@ messaging.onBackgroundMessage((payload) => {
   const opciones = {
     body: (payload.notification && payload.notification.body) || "",
     icon: "assets/icon-192.png",
-    badge: "assets/favicon-32.png"
+    badge: "assets/favicon-96.png"
   };
   self.registration.showNotification(titulo, opciones);
 });
