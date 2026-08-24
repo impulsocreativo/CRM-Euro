@@ -1,0 +1,17 @@
+{
+  "name": "CRM Euro - Taller",
+  "short_name": "CRM Euro",
+  "description": "Sistema de gestión de pedidos para taller y tienda - Euro Playeras e Insumos Textiles",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#07000d",
+  "theme_color": "#c30f16",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
