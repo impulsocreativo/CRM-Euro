@@ -22,9 +22,9 @@ self.addEventListener('activate', (event) => { event.waitUntil(self.clients.clai
 
 // Se dispara cuando llega una notificación y la app NO está abierta / está en segundo plano.
 messaging.onBackgroundMessage((payload) => {
-  const titulo = (payload.notification && payload.notification.title) || "CRM Euro";
+  const titulo = (payload.data && payload.data.title) || "CRM Euro";
   const opciones = {
-    body: (payload.notification && payload.notification.body) || "",
+    body: (payload.data && payload.data.body) || "",
     icon: "assets/icon-192.png",
     badge: "assets/favicon-96.png"
   };
