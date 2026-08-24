@@ -16,6 +16,10 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+// Activa el Service Worker de inmediato, sin esperar a que se cierren otras pestañas.
+self.addEventListener('install', () => { self.skipWaiting(); });
+self.addEventListener('activate', (event) => { event.waitUntil(self.clients.claim()); });
+
 // Se dispara cuando llega una notificación y la app NO está abierta / está en segundo plano.
 messaging.onBackgroundMessage((payload) => {
   const titulo = (payload.notification && payload.notification.title) || "CRM Euro";

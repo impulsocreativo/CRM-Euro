@@ -120,6 +120,7 @@
     .movimiento-info .mov-top { font-weight: 700; color: var(--euro-black); font-size: 0.95em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .movimiento-info .mov-producto { font-weight: 400; color: #888; font-size: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .movimiento-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .movimiento-detalle { margin-top: 6px; padding: 15px 16px; background: #fcfcfc; border: 1px solid #eee; border-radius: 10px; }
     .movimiento-accion-desktop { display: inline-flex; }
 
     @media (max-width: 768px) {
@@ -141,6 +142,8 @@
     .bg-terminado { background-color: #27ae60; color: white; }
     .bg-entregado { background-color: #2980b9; color: white; }
     .bg-recoleccion { background-color: #8e44ad; color: white; }
+    .bg-urgente { background-color: #f39c12; color: white; }
+    .bg-bomberazo { background-color: #c0392b; color: white; }
     
     .btn-icon { background: none; border: none; cursor: pointer; font-size: 1.2em; padding: 5px; border-radius: 4px; }
     .btn-icon:hover { background-color: #eee; }
@@ -171,10 +174,18 @@
       .stat-card p { font-size: 1.5em; }
       .card { padding: 15px; }
     }
+
+    @media print {
+      body * { visibility: hidden; }
+      #contenidoEtiqueta, #contenidoEtiqueta * { visibility: visible; }
+      #contenidoEtiqueta { position: fixed; top: 0; left: 0; width: 100%; box-shadow: none; }
+      #contenidoEtiqueta .btn-close, #contenidoEtiqueta button { display: none; }
+    }
   </style>
   <!-- Firebase (solo para notificaciones push; firebaseConfig no es secreto) -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -432,6 +443,24 @@
     </div>
   </div>
 
+  <!-- MODAL ETIQUETA / QR (imprimible, se pega al bulto físico) -->
+  <div class="modal-overlay" id="modalEtiqueta">
+    <div class="modal-content" id="contenidoEtiqueta" style="max-width: 340px; text-align: center;">
+      <button class="btn-close" onclick="cerrarModalGeneral('modalEtiqueta')">&times;</button>
+      <h2 style="margin-top:0; color: var(--euro-black);">Etiqueta de Ticket</h2>
+      <div style="background:#fff; padding:10px; display:inline-block;">
+        <div id="qrContainer" style="display:flex; align-items:center; justify-content:center;"></div>
+      </div>
+      <div style="text-align:left; background:#f8f9fa; padding:15px; border-radius:8px; margin-top:15px; font-size:0.95em;">
+        <p style="margin:4px 0;"><strong>Ticket:</strong> <span id="etiquetaId"></span></p>
+        <p style="margin:4px 0;"><strong>Cliente:</strong> <span id="etiquetaCliente"></span></p>
+        <p style="margin:4px 0;"><strong>Piezas:</strong> <span id="etiquetaCantidad"></span></p>
+        <p style="margin:4px 0;"><strong>Técnica:</strong> <span id="etiquetaTecnica"></span></p>
+      </div>
+      <button class="btn-submit" onclick="window.print()" style="margin-top:15px;">🖨️ Imprimir Etiqueta</button>
+    </div>
+  </div>
+
   <!-- MODAL AVISOS -->
   <div class="modal-overlay" id="modalAviso" style="z-index: 3000;">
     <div class="modal-content" style="max-width: 350px; text-align: center;">
@@ -488,6 +517,7 @@
           return;
         }
         let registro = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+        await navigator.serviceWorker.ready; // espera a que el SW quede "active", no solo registrado
         let token = await mensajeria.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: registro });
         if (!token) throw new Error("No se pudo generar el token de notificación.");
 
@@ -739,6 +769,19 @@
       return clase;
     }
 
+    // Prioridad automática según qué tan cerca está la fecha de entrega.
+    // Más de 7 días -> Normal | 1 a 7 días -> Urgente | Hoy o vencido -> Bomberazo
+    // No aplica a tickets ya Entregados (ya salieron del taller).
+    function calcularPrioridad(t) {
+      if (!t.fechaEntrega || t.estatus === "Entregado") return null;
+      let hoy = new Date(); hoy.setHours(0,0,0,0);
+      let entrega = new Date(t.fechaEntrega); entrega.setMinutes(entrega.getMinutes() + entrega.getTimezoneOffset()); entrega.setHours(0,0,0,0);
+      let dias = Math.round((entrega - hoy) / (1000 * 60 * 60 * 24));
+      if (dias <= 0) return { nivel: 'bomberazo', texto: dias < 0 ? '🔥 Vencido' : '🔥 Bomberazo', clase: 'bg-bomberazo' };
+      if (dias <= 7) return { nivel: 'urgente', texto: '⚠️ Urgente (' + dias + 'd)', clase: 'bg-urgente' };
+      return null; // Normal: no se muestra badge, para no saturar de pills la vista
+    }
+
     // =========================================================================
     // DASHBOARD Y LISTAS
     // =========================================================================
@@ -761,18 +804,29 @@
         let infoCliente = ticket.folioVenta ? `${ticket.cliente} · POS: ${ticket.folioVenta}` : ticket.cliente;
         let botonDesktop = generarBotonesAccion(ticket, false);
         let botonMobile = generarBotonesAccion(ticket, true);
+        let prioridad = calcularPrioridad(ticket);
+        let badgePrioridad = prioridad ? `<span class="badge ${prioridad.clase}" style="margin-right:6px;">${prioridad.texto}</span>` : "";
 
         html += `
-          <div class="movimiento-wrapper">
-            <div class="movimiento-swipe-accion">${botonMobile}</div>
-            <div class="movimiento-item" data-id="${ticket.id}">
-              <div class="movimiento-info">
-                <div class="mov-top">${ticket.id} · ${infoCliente}</div>
-                <div class="mov-producto">${ticket.productoTecnica}</div>
+          <div class="movimiento-card">
+            <div class="movimiento-wrapper">
+              <div class="movimiento-swipe-accion">${botonMobile}</div>
+              <div class="movimiento-item" data-id="${ticket.id}">
+                <div class="movimiento-info" onclick="toggleDetalleMovimiento('${ticket.id}')" style="cursor:pointer;" title="Toca para ver detalle">
+                  <div class="mov-top">${ticket.id} · ${infoCliente}</div>
+                  <div class="mov-producto">${ticket.productoTecnica}</div>
+                </div>
+                <div class="movimiento-right">
+                  ${badgePrioridad}
+                  <span class="badge ${claseColor}" style="cursor:pointer;" onclick="accionRapidaBadge('${ticket.id}')" title="Toca para gestionar">${ticket.estatus}</span>
+                  <div class="movimiento-accion-desktop">${botonDesktop}</div>
+                </div>
               </div>
-              <div class="movimiento-right">
-                <span class="badge ${claseColor}" style="cursor:pointer;" onclick="accionRapidaBadge('${ticket.id}')" title="Toca para gestionar">${ticket.estatus}</span>
-                <div class="movimiento-accion-desktop">${botonDesktop}</div>
+            </div>
+            <div class="movimiento-detalle" id="detalle-${ticket.id}" style="display:none;">
+              ${construirDetalleTicket(ticket)}
+              <div style="text-align:right;">
+                <button class="btn-icon" style="border:1px solid #ddd; border-radius:8px; padding:8px 14px;" onclick="abrirModalEtiqueta('${ticket.id}')">🏷️ Etiqueta / QR</button>
               </div>
             </div>
           </div>
@@ -780,6 +834,14 @@
       });
       contenedor.innerHTML = html;
       habilitarSwipeMovimientos();
+    }
+
+    function toggleDetalleMovimiento(id) {
+      let el = document.getElementById('detalle-' + id);
+      if (!el) return;
+      let abierto = el.style.display === 'block';
+      document.querySelectorAll('.movimiento-detalle').forEach(d => { if (d !== el) d.style.display = 'none'; });
+      el.style.display = abierto ? 'none' : 'block';
     }
 
     function habilitarSwipeMovimientos() {
@@ -881,6 +943,60 @@
       pintarTarjetasVisuales(ticketsVisibles);
     }
 
+    // Contenido compartido del "detalle" de un ticket: fotos, mockups y notas.
+    // Se usa tanto en la vista de Tickets como en el Dashboard (Últimos Movimientos),
+    // así la regla de qué puede ver el Jefe de Taller vive en un solo lugar.
+    function construirDetalleTicket(t) {
+      let esJefeTaller = sesionActual.rol === "Jefe de Taller";
+      let mostrarFotosVendedor = !esJefeTaller || t.sinDiseno === true;
+      let mostrarMockups = true;
+
+      let imagenesHtml = "";
+      if (mostrarFotosVendedor) {
+        imagenesHtml = "<strong>Referencias Vendedor:</strong><div class='gallery-images'>";
+        if (t.urlImagen) {
+          t.urlImagen.split("\n").forEach(l => {
+            if(l.trim() !== "") {
+              let urlImg = l.includes("drive.google.com") ? l.replace("/view?usp=drivesdk", "").replace("/edit?usp=sharing", "") + "/preview" : l;
+              imagenesHtml += `<iframe src="${urlImg}" frameborder="0"></iframe>`;
+            }
+          });
+        } else { imagenesHtml += "<p>Sin imágenes.</p>"; }
+        imagenesHtml += "</div>";
+      }
+
+      let mockupsHtml = "";
+      if (mostrarMockups) {
+        mockupsHtml = "<strong>Mockups / Archivos de Diseño:</strong><div class='gallery-images'>";
+        let pieDeFotoMockup = [];
+        if (t.urlMockup) {
+          t.urlMockup.split("\n").forEach(l => {
+            if (l.trim() === "") return;
+            if (l.includes("---")) {
+              pieDeFotoMockup.push(l.replace(/-{2,}/g, "").trim());
+            } else {
+              let urlM = l.includes("drive.google.com") ? l.replace("/view?usp=drivesdk", "").replace("/edit?usp=sharing", "") + "/preview" : l;
+              mockupsHtml += `<iframe src="${urlM}" frameborder="0"></iframe>`;
+            }
+          });
+        } else { mockupsHtml += "<p style='color:#888;'>Aún sin mockup generado.</p>"; }
+        mockupsHtml += "</div>";
+        if (pieDeFotoMockup.length > 0) {
+          mockupsHtml += `<p style="font-size:0.8em; color:#999; font-style:italic; margin:2px 0 15px 0;">${pieDeFotoMockup.join(" · ")}</p>`;
+        }
+      }
+
+      return `
+        ${imagenesHtml}
+        ${mockupsHtml}
+        <div class="ticket-meta-info">
+          <p><strong>Producto:</strong> ${t.productoTecnica} (${t.cantidad} pz)</p>
+          <p><strong>Destino:</strong> ${t.destino || 'Taller'}</p>
+          <p><strong>Notas de Vendedor:</strong>\n${t.notasVendedor || "Ninguna"}</p>
+          <p><strong>Notas de Taller / Diseño:</strong>\n${t.notasDisenador || "Sin notas previas."}</p>
+        </div>`;
+    }
+
     function pintarTarjetasVisuales(tickets) {
       let contenedor = document.getElementById('contenedorTarjetasVisuales');
       let textoBusqueda = document.getElementById('inputBuscarFolio').value.toLowerCase().trim();
@@ -902,75 +1018,29 @@
       }
 
       listaFiltrada.forEach(t => {
-        // El Jefe de Taller normalmente no necesita ver referencias del vendedor ni mockups de diseño
-        // (eso es trabajo de Diseño). Excepción: tickets marcados "Sin Diseño" (van directo a producción),
-        // ahí sí necesita ver la foto de referencia del vendedor porque no habrá mockup.
-        let esJefeTaller = sesionActual.rol === "Jefe de Taller";
-        // El Jefe de Taller sí necesita ver el mockup de Diseño (para producir a partir de él).
-        // Lo que NO necesita ver son las fotos de referencia del vendedor — salvo que el ticket
-        // se haya saltado el diseño y vaya directo a producción, ahí la foto del vendedor es su única referencia.
-        let mostrarFotosVendedor = !esJefeTaller || t.sinDiseno === true;
-        let mostrarMockups = true;
-
-        let imagenesHtml = "";
-        if (mostrarFotosVendedor) {
-          imagenesHtml = "<strong>Referencias Vendedor:</strong><div class='gallery-images'>";
-          if (t.urlImagen) {
-            t.urlImagen.split("\n").forEach(l => {
-              if(l.trim() !== "") {
-                let urlImg = l.includes("drive.google.com") ? l.replace("/view?usp=drivesdk", "").replace("/edit?usp=sharing", "") + "/preview" : l;
-                imagenesHtml += `<iframe src="${urlImg}" frameborder="0"></iframe>`;
-              }
-            });
-          } else { imagenesHtml += "<p>Sin imágenes.</p>"; }
-          imagenesHtml += "</div>";
-        }
-
-        let mockupsHtml = "";
-        if (mostrarMockups) {
-          mockupsHtml = "<strong>Mockups / Archivos de Diseño:</strong><div class='gallery-images'>";
-          let pieDeFotoMockup = [];
-          if (t.urlMockup) {
-            t.urlMockup.split("\n").forEach(l => {
-              if (l.trim() === "") return;
-              if (l.includes("---")) {
-                // El timestamp/encabezado de actualización se guarda aparte y se muestra como
-                // pie de foto AL FINAL de la galería, para no romper la fila de imágenes.
-                pieDeFotoMockup.push(l.replace(/-{2,}/g, "").trim());
-              } else {
-                let urlM = l.includes("drive.google.com") ? l.replace("/view?usp=drivesdk", "").replace("/edit?usp=sharing", "") + "/preview" : l;
-                mockupsHtml += `<iframe src="${urlM}" frameborder="0"></iframe>`;
-              }
-            });
-          } else { mockupsHtml += "<p style='color:#888;'>Aún sin mockup generado.</p>"; }
-          mockupsHtml += "</div>";
-          if (pieDeFotoMockup.length > 0) {
-            mockupsHtml += `<p style="font-size:0.8em; color:#999; font-style:italic; margin:2px 0 15px 0;">${pieDeFotoMockup.join(" · ")}</p>`;
-          }
-        }
-
         let botonAtenderHTML = generarBotonesAccion(t, false);
         if (botonAtenderHTML === "") botonAtenderHTML = `<p style="color:#888; font-size:0.9em;">Sin acciones.</p>`;
 
         let claseBadge = claseBadgePorEstatus(t.estatus);
         let textoFolioPOS = t.folioVenta ? ` | POS: ${t.folioVenta}` : "";
+        let prioridad = calcularPrioridad(t);
+        let badgePrioridad = prioridad ? `<span class="badge ${prioridad.clase}">${prioridad.texto}</span>` : "";
 
         html += `
           <div class="ticket-visual-card">
             <div class="ticket-card-header" onclick="this.parentElement.classList.toggle('expanded')">
               <h3><span>🎫 ${t.id} - ${t.cliente} ${textoFolioPOS}</span></h3>
-              <span class="badge ${claseBadge}">${t.estatus}</span>
+              <div style="display:flex; gap:8px; align-items:center;">
+                ${badgePrioridad}
+                <span class="badge ${claseBadge}">${t.estatus}</span>
+              </div>
             </div>
             <div class="ticket-card-body" style="padding: 20px;">
-              ${imagenesHtml}
-              ${mockupsHtml}
-              <div class="ticket-meta-info">
-                <p><strong>Producto:</strong> ${t.productoTecnica} (${t.cantidad} pz)</p>
-                <p><strong>Destino:</strong> ${t.destino || 'Taller'}</p>
-                <p><strong>Notas de Vendedor:</strong>\n${t.notasVendedor || "Ninguna"}</p>
-                <p><strong>Notas de Taller / Diseño:</strong>\n${t.notasDisenador || "Sin notas previas."}</p>
+              ${construirDetalleTicket(t)}
+              <div style="display:flex; gap:10px; align-items:center; justify-content:flex-end; flex-wrap:wrap;">
+                <button class="btn-icon" style="border:1px solid #ddd; border-radius:8px; padding:10px 16px;" onclick="event.stopPropagation(); abrirModalEtiqueta('${t.id}')">🏷️ Etiqueta / QR</button>
+                ${botonAtenderHTML}
               </div>
-              <div style="text-align:right;">${botonAtenderHTML}</div>
             </div>
           </div>
         `;
@@ -1088,6 +1158,21 @@
         if(res.exito) { cerrarModalGeneral('modalEstatusRapido'); mostrarAviso("Listo", res.mensaje); cargarDatosDashboard(); }
         else mostrarAviso("Atención", res.mensaje, true);
       } catch(err) { btn.disabled = false; btn.innerText = txt; mostrarAviso("Error", err.message, true); }
+    }
+
+    function abrirModalEtiqueta(id) {
+      let t = ticketsGlobal.find(x => x.id === id); if (!t) return;
+      document.getElementById('etiquetaId').innerText = t.id;
+      document.getElementById('etiquetaCliente').innerText = t.cliente;
+      document.getElementById('etiquetaCantidad').innerText = t.cantidad;
+      document.getElementById('etiquetaTecnica').innerText = t.productoTecnica;
+
+      let contenedorQR = document.getElementById('qrContainer');
+      contenedorQR.innerHTML = "";
+      let textoQR = `Ticket: ${t.id}\nCliente: ${t.cliente}\nPiezas: ${t.cantidad}\nTecnica: ${t.productoTecnica}`;
+      new QRCode(contenedorQR, { text: textoQR, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
+
+      document.getElementById('modalEtiqueta').style.display = 'flex';
     }
 
     async function abrirModalUsuarios() {
