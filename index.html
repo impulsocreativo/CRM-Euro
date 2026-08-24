@@ -454,6 +454,7 @@
       </div>
       <div style="text-align:left; background:#f8f9fa; padding:15px; border-radius:8px; margin-top:15px; font-size:0.95em;">
         <p style="margin:4px 0;"><strong>Ticket:</strong> <span id="etiquetaId"></span></p>
+        <p style="margin:4px 0;"><strong>POS:</strong> <span id="etiquetaFolioPOS"></span></p>
         <p style="margin:4px 0;"><strong>Cliente:</strong> <span id="etiquetaCliente"></span></p>
         <p style="margin:4px 0;"><strong>Piezas:</strong> <span id="etiquetaCantidad"></span></p>
         <p style="margin:4px 0;"><strong>Técnica:</strong> <span id="etiquetaTecnica"></span></p>
@@ -1164,6 +1165,7 @@
     function abrirModalEtiqueta(id) {
       let t = ticketsGlobal.find(x => x.id === id); if (!t) return;
       document.getElementById('etiquetaId').innerText = t.id;
+      document.getElementById('etiquetaFolioPOS').innerText = t.folioVenta || "Sin folio";
       document.getElementById('etiquetaCliente').innerText = t.cliente;
       document.getElementById('etiquetaCantidad').innerText = t.cantidad;
       document.getElementById('etiquetaTecnica').innerText = t.productoTecnica;
@@ -1176,7 +1178,7 @@
       contenedorQR.innerHTML = "";
       try {
         if (typeof QRCode === 'undefined') throw new Error("Librería de QR no disponible.");
-        let textoQR = `Ticket: ${t.id}\nCliente: ${t.cliente}\nPiezas: ${t.cantidad}\nTecnica: ${t.productoTecnica}`;
+        let textoQR = `Ticket: ${t.id}\nPOS: ${t.folioVenta || "Sin folio"}\nCliente: ${t.cliente}\nPiezas: ${t.cantidad}\nTecnica: ${t.productoTecnica}`;
         new QRCode(contenedorQR, { text: textoQR, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
       } catch (err) {
         console.error("Error generando QR:", err);
