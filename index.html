@@ -172,6 +172,9 @@
       .card { padding: 15px; }
     }
   </style>
+  <!-- Firebase (solo para notificaciones push; firebaseConfig no es secreto) -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js"></script>
 </head>
 <body>
 
@@ -220,6 +223,7 @@
         <button class="nav-btn" id="menuTicketsVisuales" style="display:none;" onclick="navegarDesdeDashboard('todos')">🎫 Tickets</button>
         <button class="nav-btn" id="btnMenuNuevoTicket" style="display:none;" onclick="abrirModalTicket()">➕ Nuevo Pedido</button>
         <button class="nav-btn" id="btnMenuGestionUsuarios" style="display:none;" onclick="abrirModalUsuarios()">👤 Gestionar Usuarios</button>
+        <button class="nav-btn" id="btnActivarNotificaciones" onclick="activarNotificaciones()">🔔 Activar Notificaciones</button>
       </nav>
 
       <div class="logout-container">
@@ -438,6 +442,56 @@
   </div>
 
   <script>
+    // =========================================================================
+    // 🔔 NOTIFICACIONES PUSH (Firebase Cloud Messaging)
+    // firebaseConfig no es secreto, es seguro que viva en el frontend.
+    // =========================================================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyBvPq2K10tBFWKOry79tKKUW2HHUCGFPPY",
+      authDomain: "crmeuro-14d7f.firebaseapp.com",
+      projectId: "crmeuro-14d7f",
+      storageBucket: "crmeuro-14d7f.firebasestorage.app",
+      messagingSenderId: "386516899314",
+      appId: "1:386516899314:web:998039a20080dedea3c76b"
+    };
+    const FCM_VAPID_KEY = "BM_xlj45AJ11LrmGxLMLdJq-bAT9apBvcnUJlACq4R57xXl4NNM_3F-ZTIOtUQ-bz3ShGzXMjbOn9Y4-XkaIAXA";
+    let mensajeria = null;
+    try {
+      firebase.initializeApp(firebaseConfig);
+      mensajeria = firebase.messaging();
+    } catch (e) { console.error("Firebase no se pudo inicializar (navegador sin soporte, o error de red):", e); }
+
+    async function activarNotificaciones() {
+      let btn = document.getElementById('btnActivarNotificaciones');
+      if (!mensajeria) { mostrarAviso("Atención", "Este navegador no soporta notificaciones push.", true); return; }
+      if (!sesionActual) return;
+
+      btn.innerText = "Activando..."; btn.disabled = true;
+      try {
+        let permiso = await Notification.requestPermission();
+        if (permiso !== 'granted') {
+          mostrarAviso("Atención", "No se otorgó permiso de notificaciones.", true);
+          btn.innerText = "🔔 Activar Notificaciones"; btn.disabled = false;
+          return;
+        }
+        let registro = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+        let token = await mensajeria.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: registro });
+        if (!token) throw new Error("No se pudo generar el token de notificación.");
+
+        let res = await llamarAPI('guardarSuscripcion', { usuario: sesionActual.usuario, rol: sesionActual.rol, token: token });
+        btn.innerText = "🔔 Activar Notificaciones"; btn.disabled = false;
+        if (res.exito) {
+          btn.innerText = "🔔 Notificaciones Activas";
+          mostrarAviso("Listo", "Vas a recibir notificaciones para tu rol (" + sesionActual.rol + ") en este dispositivo.");
+        } else {
+          mostrarAviso("Atención", res.mensaje, true);
+        }
+      } catch (err) {
+        btn.innerText = "🔔 Activar Notificaciones"; btn.disabled = false;
+        mostrarAviso("Error", "No se pudieron activar las notificaciones: " + err.message, true);
+      }
+    }
+
 // =========================================================================
     // 🔗 CONFIGURACIÓN DE LA API
     // =========================================================================
@@ -561,6 +615,8 @@
       document.getElementById('loginScreen').style.display = 'flex';
       document.getElementById('formLogin').reset();
       document.getElementById('msgErrorLogin').style.display = 'none';
+      let btnNotif = document.getElementById('btnActivarNotificaciones');
+      if (btnNotif) { btnNotif.innerText = "🔔 Activar Notificaciones"; btnNotif.disabled = false; }
     }
 
     // =========================================================================
