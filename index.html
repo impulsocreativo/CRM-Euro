@@ -161,7 +161,8 @@
     /* LISTA DE ÚLTIMOS MOVIMIENTOS (tarjetas, con swipe-to-edit en móvil) */
     .lista-movimientos { display: flex; flex-direction: column; gap: 10px; }
     .movimiento-wrapper { position: relative; overflow: hidden; border-radius: 10px; }
-    .movimiento-swipe-accion { position: absolute; top: 0; right: 0; height: 100%; width: 84px; overflow: hidden; }
+    .movimiento-swipe-accion { position: absolute; top: 0; left: 0; height: 100%; width: 84px; overflow: hidden; }
+    .movimiento-swipe-eliminar { position: absolute; top: 0; right: 0; height: 100%; width: 84px; overflow: hidden; background-color: #c0392b; }
     .mobile-action-btn { width: 100%; height: 100%; border: none; background-color: var(--euro-red); color: #fff; font-size: 1.8em; display: flex; align-items: center; justify-content: center; cursor: pointer; }
     .mobile-action-btn:disabled { cursor: not-allowed; opacity: 0.6; }
     .desktop-action-btn { border: none; border-radius: 8px; padding: 9px 18px; font-weight: bold; font-size: 0.88em; cursor: pointer; white-space: nowrap; background-color: var(--euro-red); color: #fff; transition: filter 0.15s ease, transform 0.1s ease; }
@@ -180,6 +181,7 @@
     }
     @media (min-width: 769px) {
       .movimiento-swipe-accion { display: none; }
+      .movimiento-swipe-eliminar { display: none; }
     }
     
     table { width: 100%; border-collapse: collapse; }
@@ -1997,7 +1999,7 @@ var qrcode = function() {
     // 10 minutos como respaldo. IMPORTANTE: sube esta constante cada vez que
     // subas cambios importantes, si no, esto no detecta nada nuevo.
     // =========================================================================
-    const APP_VERSION = "2026-08-25-03";
+    const APP_VERSION = "2026-08-25-04";
 
     async function revisarActualizacionDisponible() {
       try {
@@ -2401,6 +2403,22 @@ var qrcode = function() {
       return `<button class="btn-icon" style="border:1px solid #ddd; border-radius:8px; padding:10px 16px;" onclick="event.stopPropagation(); duplicarTicket('${t.id}')">🧬 Duplicar</button>`;
     }
 
+    function botonEliminar_(t) {
+      if (sesionActual.rol !== 'Administrador') return '';
+      return `<button class="btn-icon" style="border:1px solid #f5c6cb; background:#fdecea; color:#c0392b; border-radius:8px; padding:10px 16px;" onclick="event.stopPropagation(); confirmarEliminarTicket('${t.id}')">🗑️ Eliminar</button>`;
+    }
+
+    async function confirmarEliminarTicket(id) {
+      let t = ticketsGlobal.find(x => x.id === id); if (!t) return;
+      let ok = confirm("¿Eliminar el ticket " + t.id + " (" + t.cliente + ")?\n\nEsto borra el registro Y manda sus fotos a la papelera de Drive. No se puede deshacer desde la app.");
+      if (!ok) return;
+      try {
+        let res = await llamarAPI('eliminarTicket', { id: t.id, rol: sesionActual.rol });
+        if (res.exito) { mostrarAviso("Listo", res.mensaje); cargarDatosDashboard(); }
+        else mostrarAviso("Atención", res.mensaje, true);
+      } catch (err) { mostrarAviso("Error", err.message, true); }
+    }
+
     function claseBadgePorEstatus(estatus) {
       let clase = "bg-nuevo";
       if (estatus.includes("Producción")) clase = "bg-produccion";
@@ -2486,10 +2504,18 @@ var qrcode = function() {
         let claseCard = prioridad ? 'prioridad-' + prioridad.nivel : '';
         let iconoTicket = prioridad ? prioridad.icono : '🎫';
 
+        let botonEliminarSwipe = (sesionActual.rol === 'Administrador')
+          ? `<div class="movimiento-swipe-eliminar"><button class="mobile-action-btn" onclick="event.stopPropagation(); confirmarEliminarTicket('${ticket.id}')">🗑️</button></div>`
+          : '';
+        let botonEliminarDesktop = (sesionActual.rol === 'Administrador')
+          ? `<button class="btn-icon" style="border:1px solid #f5c6cb; background:#fdecea; color:#c0392b; border-radius:6px; padding:6px 10px;" onclick="confirmarEliminarTicket('${ticket.id}')" title="Eliminar ticket">🗑️</button>`
+          : '';
+
         html += `
           <div class="movimiento-card">
             <div class="movimiento-wrapper">
               <div class="movimiento-swipe-accion">${botonMobile}</div>
+              ${botonEliminarSwipe}
               <div class="movimiento-item ${claseCard}" data-id="${ticket.id}">
                 <div class="movimiento-info" onclick="toggleDetalleMovimiento('${ticket.id}')" style="cursor:pointer;" title="Toca para ver detalle">
                   <div class="mov-top">${iconoTicket} ${ticket.id} · ${infoCliente}</div>
@@ -2498,6 +2524,7 @@ var qrcode = function() {
                 <div class="movimiento-right">
                   <span class="badge ${claseColor}" style="cursor:pointer;" onclick="accionRapidaBadge('${ticket.id}')" title="Toca para gestionar">${ticket.estatus}</span>
                   <div class="movimiento-accion-desktop">${botonDesktop}</div>
+                  <div class="movimiento-accion-desktop">${botonEliminarDesktop}</div>
                 </div>
               </div>
             </div>
@@ -2523,13 +2550,15 @@ var qrcode = function() {
     }
 
     function habilitarSwipeMovimientos() {
-      const ANCHO_ACCION = -84;
+      const ANCHO_PANEL = 84;
       document.querySelectorAll('#listaMovimientos .movimiento-item').forEach(item => {
+        let wrapper = item.closest('.movimiento-wrapper');
+        let hayEliminar = !!(wrapper && wrapper.querySelector('.movimiento-swipe-eliminar'));
         let startX = 0, deltaX = 0, arrastrando = false;
 
         item.addEventListener('touchstart', e => {
           document.querySelectorAll('#listaMovimientos .movimiento-item').forEach(otro => {
-            if (otro !== item && otro.dataset.abierto === 'true') {
+            if (otro !== item && otro.dataset.abierto && otro.dataset.abierto !== 'false') {
               otro.style.transform = 'translateX(0)';
               otro.dataset.abierto = 'false';
             }
@@ -2542,17 +2571,21 @@ var qrcode = function() {
         item.addEventListener('touchmove', e => {
           if (!arrastrando) return;
           deltaX = e.touches[0].clientX - startX;
-          if (deltaX > 0) deltaX = 0;
-          if (deltaX < ANCHO_ACCION) deltaX = ANCHO_ACCION;
+          let limiteIzquierdo = hayEliminar ? -ANCHO_PANEL : 0; // deslizar a la izquierda solo abre algo si hay basurero
+          if (deltaX > ANCHO_PANEL) deltaX = ANCHO_PANEL;   // deslizar a la derecha: acción rápida
+          if (deltaX < limiteIzquierdo) deltaX = limiteIzquierdo;
           item.style.transform = `translateX(${deltaX}px)`;
         }, { passive: true });
 
         item.addEventListener('touchend', () => {
           arrastrando = false;
           item.style.transition = 'transform 0.2s ease';
-          if (deltaX < ANCHO_ACCION / 2) {
-            item.style.transform = `translateX(${ANCHO_ACCION}px)`;
-            item.dataset.abierto = 'true';
+          if (deltaX > ANCHO_PANEL / 2) {
+            item.style.transform = `translateX(${ANCHO_PANEL}px)`;
+            item.dataset.abierto = 'accion';
+          } else if (hayEliminar && deltaX < -ANCHO_PANEL / 2) {
+            item.style.transform = `translateX(${-ANCHO_PANEL}px)`;
+            item.dataset.abierto = 'eliminar';
           } else {
             item.style.transform = 'translateX(0)';
             item.dataset.abierto = 'false';
@@ -2831,6 +2864,7 @@ var qrcode = function() {
                 <button class="btn-icon" style="border:1px solid #ddd; border-radius:8px; padding:10px 16px;" onclick="event.stopPropagation(); abrirModalEtiqueta('${t.id}')">🏷️ Etiqueta / QR</button>
                 ${botonDuplicar_(t)}
                 ${botonCorregir_(t)}
+                ${botonEliminar_(t)}
                 ${botonAtenderHTML}
               </div>
             </div>
@@ -3092,6 +3126,7 @@ var qrcode = function() {
                 <button class="btn-icon" style="border:1px solid #ddd; border-radius:8px; padding:10px 16px;" onclick="event.stopPropagation(); abrirModalEtiqueta('${t.id}')">🏷️ Etiqueta / QR</button>
                 ${botonDuplicar_(t)}
                 ${botonCorregir_(t)}
+                ${botonEliminar_(t)}
                 ${botonAtenderHTML}
               </div>
             </div>
