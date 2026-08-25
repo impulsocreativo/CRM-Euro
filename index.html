@@ -17,6 +17,28 @@
   <meta name="apple-mobile-web-app-title" content="CRM Euro">
   <style>
     :root { --euro-black: #07000d; --euro-red: #c30f16; --euro-dark-gray: #7f7f7f; --euro-light-gray: #b8b8b8; --bg-body: #f8f9fa; --bg-sidebar: #e5e5e5; --text-main: #2c3e50; }
+
+    body.modo-oscuro {
+      --bg-body: #16171a;
+      --bg-sidebar: #101114;
+      --text-main: #e4e4e4;
+    }
+    body.modo-oscuro .card, body.modo-oscuro .modal-content, body.modo-oscuro .ticket-visual-card,
+    body.modo-oscuro .movimiento-item, body.modo-oscuro .stat-card, body.modo-oscuro .ticket-meta-info,
+    body.modo-oscuro .movimiento-detalle, body.modo-oscuro .ticket-card-header, body.modo-oscuro .ticket-card-body,
+    body.modo-oscuro .login-card, body.modo-oscuro .calendario-celda {
+      background-color: #232427 !important;
+      color: #e4e4e4 !important;
+      border-color: #3a3b3f !important;
+    }
+    body.modo-oscuro .sidebar { background-color: var(--bg-sidebar); }
+    body.modo-oscuro input, body.modo-oscuro select, body.modo-oscuro textarea {
+      background-color: #2b2c30; color: #e4e4e4; border-color: #45464a;
+    }
+    body.modo-oscuro .timeline-msg { color: #d5d5d5; }
+    body.modo-oscuro .mov-producto, body.modo-oscuro .timeline-meta { color: #999; }
+    body.modo-oscuro h1, body.modo-oscuro h2, body.modo-oscuro h3, body.modo-oscuro strong { color: #f0f0f0; }
+    body.modo-oscuro .btn-icon { background-color: #2b2c30 !important; color: #e4e4e4; }
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { margin: 0; padding: 0; background-color: var(--bg-body); display: flex; height: 100vh; overflow: hidden; color: var(--text-main); }
     
@@ -51,6 +73,13 @@
     .calendario-numero { font-size: 0.85em; }
     .calendario-badge { position: absolute; bottom: 4px; right: 4px; background: var(--euro-red); color: #fff; font-size: 0.65em; padding: 1px 5px; border-radius: 10px; font-weight: bold; }
     .calendario-hoy { box-shadow: inset 0 0 0 2px var(--euro-black); }
+    .metricas-lista { display: flex; flex-direction: column; gap: 16px; }
+    .metrica-fila { display: grid; grid-template-columns: 220px 1fr 90px; align-items: center; gap: 12px; }
+    .metrica-etiqueta { font-size: 0.9em; }
+    .metrica-barra-fondo { background: #eee; border-radius: 6px; height: 14px; overflow: hidden; }
+    .metrica-barra { background: var(--euro-red); height: 100%; border-radius: 6px; }
+    .metrica-valor { text-align: right; font-weight: bold; font-size: 0.9em; }
+    @media (max-width: 768px) { .metrica-fila { grid-template-columns: 1fr; } .metrica-valor { text-align: left; } }
     .user-profile h2 { margin: 0; font-size: 1.5em; font-weight: 600; color: #000; }
     .user-profile .divider { border: none; border-bottom: 3px solid var(--euro-red); margin: 8px 0; width: 100%; }
     .user-profile p { margin: 0; font-weight: 600; font-size: 1em; color: #000; }
@@ -1629,7 +1658,9 @@ var qrcode = function() {
         <button class="nav-btn" id="menuTicketsVisuales" style="display:none;" onclick="navegarDesdeDashboard('todos')">🎫 Tickets</button>
         <button class="nav-btn" id="btnMenuNuevoTicket" style="display:none;" onclick="abrirModalTicket()">➕ Nuevo Pedido</button>
         <button class="nav-btn" id="btnMenuGestionUsuarios" style="display:none;" onclick="abrirModalUsuarios()">👤 Gestionar Usuarios</button>
+        <button class="nav-btn" id="menuMetricas" style="display:none;" onclick="cambiarVista('metricas')">📊 Métricas</button>
         <button class="nav-btn" id="btnActivarNotificaciones" onclick="activarNotificaciones()">🔔 Activar Notificaciones</button>
+        <button class="nav-btn" id="btnModoOscuro" onclick="toggleModoOscuro()">🌙 Modo Oscuro</button>
       </nav>
 
       <div class="logout-container">
@@ -1698,6 +1729,7 @@ var qrcode = function() {
               <div class="search-box" style="flex-grow: 1; max-width: 300px;">
                 <input type="text" id="inputBuscarFolio" placeholder="Buscar folio TKT..." oninput="filtrarTarjetasPorFolio()">
               </div>
+              <button class="btn-icon" style="border:1px solid #ddd; border-radius:8px; padding:9px 16px;" onclick="exportarTicketsCSV()">⬇️ Exportar CSV</button>
             </div>
             <div id="contenedorTarjetasVisuales"></div>
           </div>
@@ -1725,6 +1757,14 @@ var qrcode = function() {
               <div class="calendario-grid" id="gridCalendario"></div>
             </div>
             <div id="contenedorTareas"></div>
+          </div>
+        </div>
+
+        <div id="vistaMetricas" class="view-section">
+          <div class="card">
+            <h1>📊 Métricas de Tiempo por Etapa</h1>
+            <p style="color:#666; margin-top:-10px;">Promedio de cuánto tarda un ticket en cada estatus, calculado a partir del historial automático de todos los tickets.</p>
+            <div id="contenedorMetricas"></div>
           </div>
         </div>
 
@@ -1834,7 +1874,32 @@ var qrcode = function() {
         Ticket <strong id="rapidoId"></strong> — <span id="rapidoCliente"></span><br>
         Estatus actual: <span class="badge" id="rapidoBadgeActual"></span>
       </p>
+      <div class="form-group">
+        <label>📸 Foto de Control de Calidad (opcional)</label>
+        <input type="file" id="archivoCalidadRapido" accept="image/*" multiple>
+      </div>
       <button type="button" class="btn-submit" id="btnRapidoConfirmar" style="background-color: var(--euro-red);" onclick="confirmarEstatusRapido()"></button>
+    </div>
+  </div>
+
+  <!-- MODAL CORREGIR ESTATUS (para deshacer o arreglar un error) -->
+  <div class="modal-overlay" id="modalCorregirEstatus">
+    <div class="modal-content" style="max-width:400px;">
+      <button class="btn-close" onclick="cerrarModalGeneral('modalCorregirEstatus')">&times;</button>
+      <h2 style="margin-top:0; color: var(--euro-black);">Corregir Estatus</h2>
+      <p style="color:#555; margin-bottom:15px; line-height:1.6;">
+        Ticket <strong id="corregirId"></strong> — <span id="corregirCliente"></span><br>
+        Estatus actual: <span class="badge" id="corregirBadgeActual"></span>
+      </p>
+      <div class="form-group">
+        <label>Nuevo estatus</label>
+        <select id="corregirNuevoEstatus"></select>
+      </div>
+      <div class="form-group">
+        <label>Motivo de la corrección (opcional)</label>
+        <textarea id="corregirMotivo" rows="2" placeholder="Ej. Me equivoqué, era otro ticket..."></textarea>
+      </div>
+      <button type="button" class="btn-submit" id="btnConfirmarCorreccion" style="background-color: var(--euro-red);" onclick="confirmarCorreccionEstatus()">Guardar Corrección</button>
     </div>
   </div>
 
@@ -1938,6 +2003,25 @@ var qrcode = function() {
         }
       });
     } catch (e) { console.error("Firebase no se pudo inicializar (navegador sin soporte, o error de red):", e); }
+
+    // =========================================================================
+    // MODO OSCURO — se aplica de inmediato al cargar (incluso antes del login),
+    // usando la preferencia guardada en este dispositivo.
+    // =========================================================================
+    function actualizarTextoBotonModoOscuro() {
+      let btn = document.getElementById('btnModoOscuro');
+      if (btn) btn.innerText = document.body.classList.contains('modo-oscuro') ? '☀️ Modo Claro' : '🌙 Modo Oscuro';
+    }
+    function aplicarModoOscuroGuardado() {
+      document.body.classList.toggle('modo-oscuro', localStorage.getItem('crmEuroModoOscuro') === 'true');
+      actualizarTextoBotonModoOscuro();
+    }
+    function toggleModoOscuro() {
+      let activo = document.body.classList.toggle('modo-oscuro');
+      localStorage.setItem('crmEuroModoOscuro', activo ? 'true' : 'false');
+      actualizarTextoBotonModoOscuro();
+    }
+    aplicarModoOscuroGuardado();
 
     const LS_FCM_TOKEN = "crmEuroFcmToken";
 
@@ -2086,6 +2170,10 @@ var qrcode = function() {
         vistaTareasActual = 'lista';
         actualizarVisibilidadTareas();
         pintarTareas();
+      } else if(vista === 'metricas') {
+        document.getElementById('vistaMetricas').classList.add('active-view');
+        document.getElementById('menuMetricas').classList.add('active');
+        pintarMetricas();
       }
       document.getElementById('sidebar').classList.remove('open');
       document.getElementById('sidebarOverlay').classList.remove('active');
@@ -2122,6 +2210,7 @@ var qrcode = function() {
           document.getElementById('menuTicketsVisuales').style.display = 'flex';
           document.getElementById('menuTareas').style.display = 'flex';
           document.getElementById('btnMenuGestionUsuarios').style.display = 'none';
+          document.getElementById('menuMetricas').style.display = 'none';
 
           if (sesionActual.rol === "Jefe de Taller") {
             document.getElementById('btnMenuNuevoTicket').style.display = 'none';
@@ -2139,6 +2228,7 @@ var qrcode = function() {
             document.getElementById('btnMenuNuevoTicket').style.display = 'flex';
             document.getElementById('fabNuevoPedido').style.display = 'flex';
             document.getElementById('btnMenuGestionUsuarios').style.display = 'flex';
+            document.getElementById('menuMetricas').style.display = 'flex';
             document.getElementById('saludoDashboard').innerText = "Hola " + sesionActual.nombre + " (Administrador). Control general.";
           } else {
             document.getElementById('btnMenuNuevoTicket').style.display = 'flex';
@@ -2475,6 +2565,74 @@ var qrcode = function() {
     // así la regla de qué puede ver el Jefe de Taller vive en un solo lugar.
     // Las notas se guardan como texto plano con formato "[fecha - autor]: mensaje" separado por
     // líneas en blanco. Esto las convierte en eventos individuales para pintar como línea de tiempo.
+    // =========================================================================
+    // MÉTRICAS DE TIEMPO POR ETAPA (solo Administrador)
+    // Reutiliza las notas automáticas del sistema (mismas que arman la línea de
+    // tiempo) para reconstruir cuánto duró cada ticket en cada estatus.
+    // =========================================================================
+    function extraerEventosEstatus_(t) {
+      let eventos = parsearNotas_(t.notasVendedor).concat(parsearNotas_(t.notasDisenador))
+        .filter(ev => ev.autor === 'Sistema')
+        .map(ev => {
+          let m = ev.mensaje.match(/Estatus (?:inicial:|actualizado a|CORREGIDO a)\s*'?([^'.\n]+)'?/i);
+          if (!m) return null;
+          return { fechaMs: fechaTextoAOrden_(ev.fechaTexto), estatus: m[1].trim() };
+        })
+        .filter(x => x && x.fechaMs > 0);
+      eventos.sort((a, b) => a.fechaMs - b.fechaMs);
+      return eventos;
+    }
+
+    function calcularMetricasEtapas() {
+      let sumaPorEstatus = {};
+      ticketsGlobal.forEach(t => {
+        let eventos = extraerEventosEstatus_(t);
+        for (let i = 0; i < eventos.length - 1; i++) {
+          let estatusActivo = eventos[i].estatus;
+          let duracionMs = eventos[i + 1].fechaMs - eventos[i].fechaMs;
+          if (duracionMs < 0) continue;
+          if (!sumaPorEstatus[estatusActivo]) sumaPorEstatus[estatusActivo] = { sumaMs: 0, conteo: 0 };
+          sumaPorEstatus[estatusActivo].sumaMs += duracionMs;
+          sumaPorEstatus[estatusActivo].conteo += 1;
+        }
+      });
+      return Object.keys(sumaPorEstatus).map(estatus => ({
+        estatus,
+        promedioHoras: (sumaPorEstatus[estatus].sumaMs / sumaPorEstatus[estatus].conteo) / (1000 * 60 * 60),
+        muestras: sumaPorEstatus[estatus].conteo
+      }));
+    }
+
+    function formatearDuracion_(horas) {
+      if (horas < 1) return Math.round(horas * 60) + " min";
+      if (horas < 48) return horas.toFixed(1) + " h";
+      return (horas / 24).toFixed(1) + " días";
+    }
+
+    function pintarMetricas() {
+      let contenedor = document.getElementById('contenedorMetricas');
+      let datos = calcularMetricasEtapas();
+      if (datos.length === 0) {
+        contenedor.innerHTML = '<p style="text-align:center; color:#777; padding:30px;">Aún no hay suficiente historial para calcular métricas (se necesitan tickets que ya hayan cambiado de estatus al menos una vez).</p>';
+        return;
+      }
+      datos.sort((a, b) => b.promedioHoras - a.promedioHoras);
+      let maxHoras = Math.max(...datos.map(d => d.promedioHoras));
+
+      let html = '<div class="metricas-lista">';
+      datos.forEach(d => {
+        let pctBarra = maxHoras > 0 ? Math.max(4, (d.promedioHoras / maxHoras) * 100) : 4;
+        html += `
+          <div class="metrica-fila">
+            <div class="metrica-etiqueta">${d.estatus} <span style="color:#999; font-weight:normal;">(${d.muestras} caso${d.muestras === 1 ? '' : 's'})</span></div>
+            <div class="metrica-barra-fondo"><div class="metrica-barra" style="width:${pctBarra}%;"></div></div>
+            <div class="metrica-valor">${formatearDuracion_(d.promedioHoras)}</div>
+          </div>`;
+      });
+      html += '</div>';
+      contenedor.innerHTML = html;
+    }
+
     function parsearNotas_(texto) {
       if (!texto) return [];
       return texto.split("\n\n").map(bloque => {
@@ -2611,6 +2769,7 @@ var qrcode = function() {
               <div style="display:flex; gap:10px; align-items:center; justify-content:flex-end; flex-wrap:wrap;">
                 <button class="btn-icon" style="border:1px solid #ddd; border-radius:8px; padding:10px 16px;" onclick="event.stopPropagation(); abrirModalEtiqueta('${t.id}')">🏷️ Etiqueta / QR</button>
                 ${botonDuplicar_(t)}
+                ${botonCorregir_(t)}
                 ${botonAtenderHTML}
               </div>
             </div>
@@ -2798,6 +2957,38 @@ var qrcode = function() {
       }
     });
 
+    function exportarTicketsCSV() {
+      let textoBusqueda = document.getElementById('inputBuscarFolio').value.toLowerCase().trim();
+      let lista = ticketsVisibles;
+
+      if (filtroActualTarjetas === 'terminados') lista = lista.filter(t => t.estatus === "Terminado");
+      else if (filtroActualTarjetas === 'pendientes') lista = lista.filter(t => t.estatus.includes("Producción") || t.estatus === "Nuevo / Pendiente Bordado");
+      else if (filtroActualTarjetas === 'nuevos') lista = lista.filter(t => t.estatus === "Nuevo / Pendiente Diseño");
+      else if (filtroActualTarjetas === 'entregados') lista = lista.filter(t => t.estatus === "Entregado");
+      else if (filtroActualTarjetas === 'recoleccion') lista = lista.filter(t => t.estatus === "Terminado Pendiente de Recolección");
+      if (textoBusqueda !== "") lista = lista.filter(t => t.id.toLowerCase().includes(textoBusqueda) || (t.folioVenta && t.folioVenta.toString().toLowerCase().includes(textoBusqueda)));
+
+      if (lista.length === 0) { mostrarAviso("Atención", "No hay tickets para exportar con el filtro actual.", true); return; }
+
+      function escaparCSV_(valor) {
+        let s = (valor === null || valor === undefined) ? "" : String(valor);
+        if (s.includes(",") || s.includes('"') || s.includes("\n")) s = '"' + s.replace(/"/g, '""') + '"';
+        return s;
+      }
+      function fechaCorta_(iso) { return iso ? new Date(iso).toLocaleDateString() : ""; }
+
+      let encabezados = ["ID", "Cliente", "POS", "Cantidad", "Producto/Técnica", "Destino", "Estatus", "Fecha Ingreso", "Fecha Entrega", "Fecha Término"];
+      let filas = lista.map(t => [t.id, t.cliente, t.folioVenta || "", t.cantidad, t.productoTecnica, t.destino, t.estatus, fechaCorta_(t.fechaIngreso), fechaCorta_(t.fechaEntrega), fechaCorta_(t.fechaTermino)]);
+
+      let contenido = encabezados.map(escaparCSV_).join(",") + "\n" + filas.map(f => f.map(escaparCSV_).join(",")).join("\n");
+      let blob = new Blob(["\uFEFF" + contenido], { type: "text/csv;charset=utf-8;" }); // el BOM es para que Excel lea bien los acentos
+      let url = URL.createObjectURL(blob);
+      let a = document.createElement('a');
+      a.href = url; a.download = "tickets_" + new Date().toISOString().split('T')[0] + ".csv";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
     function pintarTarjetasVisuales(tickets) {
       let contenedor = document.getElementById('contenedorTarjetasVisuales');
       let textoBusqueda = document.getElementById('inputBuscarFolio').value.toLowerCase().trim();
@@ -2839,6 +3030,7 @@ var qrcode = function() {
               <div style="display:flex; gap:10px; align-items:center; justify-content:flex-end; flex-wrap:wrap;">
                 <button class="btn-icon" style="border:1px solid #ddd; border-radius:8px; padding:10px 16px;" onclick="event.stopPropagation(); abrirModalEtiqueta('${t.id}')">🏷️ Etiqueta / QR</button>
                 ${botonDuplicar_(t)}
+                ${botonCorregir_(t)}
                 ${botonAtenderHTML}
               </div>
             </div>
@@ -2972,13 +3164,76 @@ var qrcode = function() {
     async function confirmarEstatusRapido() {
       let btn = document.getElementById('btnRapidoConfirmar');
       let txt = btn.innerText; btn.innerText = "Procesando..."; btn.disabled = true;
-      let datos = { id: rapidoTicketId, notasDisenador: rapidoNotaAuto, estatusDestino: rapidoEstatusDestino, archivos: [] };
+      procesarEnvioArchivos('archivoCalidadRapido', async (archivosCalidad) => {
+        let datos = { id: rapidoTicketId, notasDisenador: rapidoNotaAuto, estatusDestino: rapidoEstatusDestino, archivos: [], archivosCalidad: archivosCalidad };
+        try {
+          let res = await llamarAPI('procesarTicketDiseno', datos);
+          btn.disabled = false; btn.innerText = txt;
+          if(res.exito) { cerrarModalGeneral('modalEstatusRapido'); mostrarAviso("Listo", res.mensaje); cargarDatosDashboard(); }
+          else mostrarAviso("Atención", res.mensaje, true);
+        } catch(err) { btn.disabled = false; btn.innerText = txt; mostrarAviso("Error", err.message, true); }
+      });
+    }
+
+    // =========================================================================
+    // CORREGIR ESTATUS — para cuando alguien se equivoca, incluso ya en
+    // Terminado/Entregado. Cada rol solo puede corregir dentro de "su" tramo del
+    // flujo (evita que cualquiera reescriba estatus de otra área); Administrador
+    // puede corregir cualquier ticket a cualquier estatus.
+    // =========================================================================
+    function estatusCorregiblesPorRol_() {
+      const TODOS = ["Nuevo / Pendiente Diseño", "Nuevo / Pendiente Bordado", "Listo para Producción", "Terminado Pendiente de Recolección", "Terminado", "Entregado"];
+      switch (sesionActual.rol) {
+        case 'Administrador': return TODOS;
+        case 'Vendedor': return ["Terminado Pendiente de Recolección", "Terminado", "Entregado"];
+        case 'Jefe de Taller': return ["Listo para Producción", "Terminado"];
+        case 'Bordados': return ["Nuevo / Pendiente Bordado", "Terminado Pendiente de Recolección"];
+        case 'Diseñador': return ["Nuevo / Pendiente Diseño", "Listo para Producción"];
+        default: return [];
+      }
+    }
+
+    let corregirTicketId = null;
+
+    function abrirModalCorregirEstatus(id) {
+      let t = ticketsGlobal.find(x => x.id === id); if (!t) return;
+      let opciones = estatusCorregiblesPorRol_();
+      if (opciones.length === 0) { mostrarAviso("Atención", "Tu rol no tiene estatus disponibles para corregir.", true); return; }
+
+      corregirTicketId = t.id;
+      document.getElementById('corregirId').innerText = t.id;
+      document.getElementById('corregirCliente').innerText = t.cliente;
+      document.getElementById('corregirBadgeActual').innerText = t.estatus;
+      document.getElementById('corregirBadgeActual').className = "badge " + claseBadgePorEstatus(t.estatus);
+      document.getElementById('corregirNuevoEstatus').innerHTML = opciones.map(e => `<option value="${e}" ${e === t.estatus ? 'selected' : ''}>${e}</option>`).join('');
+      document.getElementById('corregirMotivo').value = "";
+      document.getElementById('modalCorregirEstatus').style.display = 'flex';
+    }
+
+    async function confirmarCorreccionEstatus() {
+      let btn = document.getElementById('btnConfirmarCorreccion');
+      let txt = btn.innerText; btn.innerText = "Guardando..."; btn.disabled = true;
+      let nuevoEstatus = document.getElementById('corregirNuevoEstatus').value;
+      let motivo = document.getElementById('corregirMotivo').value.trim();
+      let datos = {
+        id: corregirTicketId,
+        estatusDestino: nuevoEstatus,
+        esCorreccion: true,
+        corregidoPor: sesionActual.nombre + " (" + sesionActual.rol + ")",
+        notasDisenador: motivo ? ("Motivo de la corrección: " + motivo) : "",
+        archivos: []
+      };
       try {
         let res = await llamarAPI('procesarTicketDiseno', datos);
         btn.disabled = false; btn.innerText = txt;
-        if(res.exito) { cerrarModalGeneral('modalEstatusRapido'); mostrarAviso("Listo", res.mensaje); cargarDatosDashboard(); }
+        if(res.exito) { cerrarModalGeneral('modalCorregirEstatus'); mostrarAviso("Listo", res.mensaje); cargarDatosDashboard(); }
         else mostrarAviso("Atención", res.mensaje, true);
       } catch(err) { btn.disabled = false; btn.innerText = txt; mostrarAviso("Error", err.message, true); }
+    }
+
+    function botonCorregir_(t) {
+      if (estatusCorregiblesPorRol_().length === 0) return '';
+      return `<button class="btn-icon" style="border:1px solid #ddd; border-radius:8px; padding:10px 16px;" onclick="event.stopPropagation(); abrirModalCorregirEstatus('${t.id}')">✏️ Corregir</button>`;
     }
 
     // Esta librería no tiene "tamaño automático": hay que ir probando tipos (1 a 40)
