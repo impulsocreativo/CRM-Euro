@@ -1999,7 +1999,7 @@ var qrcode = function() {
     // 10 minutos como respaldo. IMPORTANTE: sube esta constante cada vez que
     // subas cambios importantes, si no, esto no detecta nada nuevo.
     // =========================================================================
-    const APP_VERSION = "2026-08-25-04";
+    const APP_VERSION = "2026-08-25-05";
 
     async function revisarActualizacionDisponible() {
       try {
@@ -2172,12 +2172,21 @@ var qrcode = function() {
     // Motor central para comunicarse con Google Drive
     async function llamarAPI(accion, datos = {}) {
       try {
+        // Se manda el token de sesión en TODAS las peticiones (menos el login, que
+        // todavía no tiene uno) — así el backend puede verificar quién dice ser de
+        // verdad, en vez de creerle a lo que el navegador afirme en cada petición.
+        if (sesionActual && sesionActual.sesionToken) datos.sesionToken = sesionActual.sesionToken;
+
         let response = await fetch(API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ accion: accion, datos: datos })
         });
         let json = await response.json();
+        if (json && json.sesionInvalida) {
+          cerrarSesion();
+          mostrarAviso("Sesión expirada", "Tu sesión ya no es válida — vuelve a iniciar sesión.", true);
+        }
         return json;
       } catch (error) {
         console.error("Error en Fetch:", error);
