@@ -186,6 +186,31 @@
 
     #loteEtiquetasPrint { position: absolute; left: -9999px; top: 0; }
 
+    .fab-nuevo-pedido {
+      display: none;
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background-color: var(--euro-red);
+      color: #fff;
+      border: none;
+      font-size: 2em;
+      line-height: 1;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+      cursor: pointer;
+      z-index: 900;
+      touch-action: none;
+      transition: box-shadow 0.15s ease;
+    }
+    .fab-nuevo-pedido:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.35); }
+    .fab-nuevo-pedido.arrastrando { transition: none; }
+    @media print { .fab-nuevo-pedido { display: none !important; } }
+
     @media print {
       body * { visibility: hidden; }
       #contenidoEtiqueta, #contenidoEtiqueta * { visibility: visible; }
@@ -1580,8 +1605,8 @@ var qrcode = function() {
 
       <nav class="nav-menu">
         <button class="nav-btn active" id="menuDashboard" onclick="cambiarVista('dashboard')">📊 Panel de Control</button>
-        <button class="nav-btn" id="menuTicketsVisuales" style="display:none;" onclick="navegarDesdeDashboard('todos')">🎫 Tickets</button>
         <button class="nav-btn" id="menuTareas" style="display:none;" onclick="cambiarVista('tareas')">📋 Tareas</button>
+        <button class="nav-btn" id="menuTicketsVisuales" style="display:none;" onclick="navegarDesdeDashboard('todos')">🎫 Tickets</button>
         <button class="nav-btn" id="btnMenuNuevoTicket" style="display:none;" onclick="abrirModalTicket()">➕ Nuevo Pedido</button>
         <button class="nav-btn" id="btnMenuGestionUsuarios" style="display:none;" onclick="abrirModalUsuarios()">👤 Gestionar Usuarios</button>
         <button class="nav-btn" id="btnActivarNotificaciones" onclick="activarNotificaciones()">🔔 Activar Notificaciones</button>
@@ -1832,6 +1857,9 @@ var qrcode = function() {
   <!-- Contenedor oculto para imprimir varias etiquetas de golpe (Tareas del día) -->
   <div id="loteEtiquetasPrint"></div>
 
+  <!-- Acceso directo flotante: Nuevo Pedido (exclusivo Vendedor/Administrador) -->
+  <button class="fab-nuevo-pedido" id="fabNuevoPedido" title="Nuevo Pedido" aria-label="Nuevo Pedido">+</button>
+
   <!-- MODAL AVISOS -->
   <div class="modal-overlay" id="modalAviso" style="z-index: 3000;">
     <div class="modal-content" style="max-width: 350px; text-align: center;">
@@ -2060,19 +2088,24 @@ var qrcode = function() {
 
           if (sesionActual.rol === "Jefe de Taller") {
             document.getElementById('btnMenuNuevoTicket').style.display = 'none';
+            document.getElementById('fabNuevoPedido').style.display = 'none';
             document.getElementById('saludoDashboard').innerText = "Supervisión de Taller - " + sesionActual.nombre;
           } else if (sesionActual.rol === "Diseñador") {
             document.getElementById('btnMenuNuevoTicket').style.display = 'none';
+            document.getElementById('fabNuevoPedido').style.display = 'none';
             document.getElementById('saludoDashboard').innerText = "Bandeja Principal - Diseño";
           } else if (sesionActual.rol === "Bordados") {
             document.getElementById('btnMenuNuevoTicket').style.display = 'none';
+            document.getElementById('fabNuevoPedido').style.display = 'none';
             document.getElementById('saludoDashboard').innerText = "Bandeja de Maquila - Bordados";
           } else if (sesionActual.rol === "Administrador") {
             document.getElementById('btnMenuNuevoTicket').style.display = 'flex';
+            document.getElementById('fabNuevoPedido').style.display = 'flex';
             document.getElementById('btnMenuGestionUsuarios').style.display = 'flex';
             document.getElementById('saludoDashboard').innerText = "Hola " + sesionActual.nombre + " (Administrador). Control general.";
           } else {
             document.getElementById('btnMenuNuevoTicket').style.display = 'flex';
+            document.getElementById('fabNuevoPedido').style.display = 'flex';
             document.getElementById('saludoDashboard').innerText = "Hola " + sesionActual.nombre + " (" + sesionActual.rol + "). Control general.";
           }
 
@@ -2096,6 +2129,7 @@ var qrcode = function() {
       document.getElementById('loginScreen').style.display = 'flex';
       document.getElementById('formLogin').reset();
       document.getElementById('msgErrorLogin').style.display = 'none';
+      document.getElementById('fabNuevoPedido').style.display = 'none';
       let btnNotif = document.getElementById('btnActivarNotificaciones');
       if (btnNotif) { btnNotif.innerText = "🔔 Activar Notificaciones"; btnNotif.disabled = false; }
     }
@@ -2877,6 +2911,69 @@ var qrcode = function() {
         else mostrarAviso("Atención", res.mensaje, true);
       } catch(err) { btn.innerText = "Crear Usuario"; btn.disabled = false; mostrarAviso("Error", err.message, true); }
     }
+
+    // =========================================================================
+    // BOTÓN FLOTANTE "NUEVO PEDIDO" — deslizable de lado a lado, con snap al
+    // borde más cercano. La preferencia (izquierda/derecha) se recuerda por
+    // dispositivo. Un arrastre real nunca abre el modal, solo un clic limpio.
+    // =========================================================================
+    (function configurarFabArrastrable() {
+      const LS_FAB_LADO = "crmEuroFabLado";
+      let fab = document.getElementById('fabNuevoPedido');
+      if (!fab) return;
+
+      let arrastrando = false;
+      let huboArrastre = false;
+      let startX = 0;
+      let offsetInicialIzq = 0;
+
+      function aplicarLadoGuardado() {
+        let lado = localStorage.getItem(LS_FAB_LADO) || 'right';
+        if (lado === 'left') { fab.style.left = '24px'; fab.style.right = 'auto'; }
+        else { fab.style.right = '24px'; fab.style.left = 'auto'; }
+      }
+      aplicarLadoGuardado();
+
+      fab.addEventListener('pointerdown', function(e) {
+        arrastrando = true;
+        huboArrastre = false;
+        startX = e.clientX;
+        offsetInicialIzq = fab.getBoundingClientRect().left;
+        fab.classList.add('arrastrando');
+        try { fab.setPointerCapture(e.pointerId); } catch (err) {}
+      });
+
+      fab.addEventListener('pointermove', function(e) {
+        if (!arrastrando) return;
+        let deltaX = e.clientX - startX;
+        if (Math.abs(deltaX) > 6) huboArrastre = true;
+        if (!huboArrastre) return;
+        let nuevaIzq = offsetInicialIzq + deltaX;
+        let maxIzq = window.innerWidth - fab.offsetWidth - 8;
+        nuevaIzq = Math.max(8, Math.min(maxIzq, nuevaIzq));
+        fab.style.left = nuevaIzq + 'px';
+        fab.style.right = 'auto';
+      });
+
+      fab.addEventListener('pointerup', function() {
+        if (!arrastrando) return;
+        arrastrando = false;
+        fab.classList.remove('arrastrando');
+        if (huboArrastre) {
+          let centro = fab.getBoundingClientRect().left + fab.offsetWidth / 2;
+          let lado = (centro < window.innerWidth / 2) ? 'left' : 'right';
+          localStorage.setItem(LS_FAB_LADO, lado);
+          aplicarLadoGuardado();
+        }
+      });
+
+      fab.addEventListener('click', function() {
+        if (huboArrastre) { huboArrastre = false; return; } // fue arrastre, no clic real
+        abrirModalTicket();
+      });
+
+      window.addEventListener('resize', aplicarLadoGuardado);
+    })();
   </script>
 </body>
 </html>
