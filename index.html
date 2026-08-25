@@ -36,6 +36,21 @@
     .sidebar-logo { background-color: var(--euro-black); padding: 25px 30px; display: flex; justify-content: center; flex-shrink: 0; cursor: pointer; }
     .sidebar-logo img { width: 100%; max-width: 160px; height: auto; display: block; }
     .user-profile { padding: 20px 20px 10px 20px; flex-shrink: 0; }
+    .busqueda-global { position: relative; padding: 0 20px 15px 20px; }
+    .busqueda-global input { width: 100%; padding: 9px 14px; border-radius: 20px; border: 1px solid #ccc; font-size: 0.85em; box-sizing: border-box; }
+    .resultados-busqueda-global { display: none; position: absolute; top: calc(100% - 10px); left: 20px; right: 20px; background: #fff; border: 1px solid #ddd; border-radius: 8px; max-height: 300px; overflow-y: auto; z-index: 1000; box-shadow: 0 6px 16px rgba(0,0,0,0.2); }
+    .resultado-item { padding: 10px 12px; font-size: 0.85em; cursor: pointer; border-bottom: 1px solid #f0f0f0; color: #333; }
+    .resultado-item:last-child { border-bottom: none; }
+    .resultado-item:hover { background: #f8f9fa; }
+    .resultado-vacio { padding: 12px; color: #888; font-size: 0.85em; text-align: center; }
+    .calendario-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .calendario-encabezado { text-align: center; font-weight: bold; font-size: 0.8em; color: #888; padding: 4px 0; }
+    .calendario-celda { position: relative; aspect-ratio: 1/1; border: 1px solid #eee; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: #fff; transition: filter 0.15s; }
+    .calendario-celda:hover { filter: brightness(0.96); }
+    .calendario-celda.vacia { border: none; cursor: default; background: transparent; }
+    .calendario-numero { font-size: 0.85em; }
+    .calendario-badge { position: absolute; bottom: 4px; right: 4px; background: var(--euro-red); color: #fff; font-size: 0.65em; padding: 1px 5px; border-radius: 10px; font-weight: bold; }
+    .calendario-hoy { box-shadow: inset 0 0 0 2px var(--euro-black); }
     .user-profile h2 { margin: 0; font-size: 1.5em; font-weight: 600; color: #000; }
     .user-profile .divider { border: none; border-bottom: 3px solid var(--euro-red); margin: 8px 0; width: 100%; }
     .user-profile p { margin: 0; font-weight: 600; font-size: 1em; color: #000; }
@@ -1568,14 +1583,14 @@ var qrcode = function() {
       <img src="assets/LogoEuroFondoBlanco.svg" alt="Euro Playeras e Insumos Textiles">
       <h2>Acceso al Taller</h2>
       <p id="msgErrorLogin" class="login-error"></p>
-      <form id="formLogin" onsubmit="procesarLogin(event)">
+      <form id="formLogin" onsubmit="procesarLogin(event)" autocomplete="off">
         <div class="form-group">
           <label for="loginUser">Usuario</label>
-          <input type="text" id="loginUser" required autocomplete="username">
+          <input type="text" id="loginUser" name="usuarioTaller" required autocomplete="off">
         </div>
         <div class="form-group">
           <label for="loginPin">PIN</label>
-          <input type="password" id="loginPin" required autocomplete="current-password" inputmode="numeric">
+          <input type="text" id="loginPin" name="codigoAcceso" required autocomplete="off" inputmode="numeric" pattern="[0-9]*" style="-webkit-text-security: disc; text-security: disc;">
         </div>
         <button type="submit" id="btnEntrar" class="btn-submit">Entrar al Taller</button>
       </form>
@@ -1601,6 +1616,11 @@ var qrcode = function() {
         <h2 id="perfilNombre">Usuario</h2>
         <hr class="divider">
         <p id="perfilRol">Rol</p>
+      </div>
+
+      <div class="busqueda-global">
+        <input type="text" id="inputBusquedaGlobal" placeholder="🔍 Buscar ticket, cliente, folio..." oninput="buscarGlobal()" autocomplete="off">
+        <div id="resultadosBusquedaGlobal" class="resultados-busqueda-global"></div>
       </div>
 
       <nav class="nav-menu">
@@ -1688,12 +1708,21 @@ var qrcode = function() {
             <h1>📋 Tareas</h1>
             <p style="color:#666; margin-top:-10px;">Pedidos según su fecha de entrega. Por defecto, los de hoy.</p>
             <div class="filter-header-bar">
-              <div class="form-group" style="margin:0;">
+              <div class="form-group" style="margin:0;" id="grupoFechaTareas">
                 <label style="font-size:0.85em;">Fecha</label>
                 <input type="date" id="inputFechaTareas" onchange="pintarTareas()">
               </div>
               <button class="btn-actualizar" onclick="hoyEnTareas()">Hoy</button>
+              <button class="btn-submit" style="width:auto; padding:10px 20px; background-color:#34495e;" id="btnToggleCalendario" onclick="toggleVistaCalendario()">📅 Ver Calendario</button>
               <button class="btn-submit" style="width:auto; padding:10px 20px; background-color: var(--euro-black);" onclick="imprimirEtiquetasDelDia()">🖨️ Imprimir Etiquetas del Día</button>
+            </div>
+            <div id="contenedorCalendario" style="display:none;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <button class="btn-icon" style="border:1px solid #ddd; border-radius:8px; padding:8px 14px;" onclick="cambiarMesCalendario(-1)">◀</button>
+                <h3 id="tituloMesCalendario" style="margin:0; text-transform:capitalize;"></h3>
+                <button class="btn-icon" style="border:1px solid #ddd; border-radius:8px; padding:8px 14px;" onclick="cambiarMesCalendario(1)">▶</button>
+              </div>
+              <div class="calendario-grid" id="gridCalendario"></div>
             </div>
             <div id="contenedorTareas"></div>
           </div>
@@ -1769,6 +1798,12 @@ var qrcode = function() {
               <option value="mantener">Mantener mockup anterior e incluir este al historial</option>
               <option value="reemplazar">Reemplazar / Sobrescribir el mockup anterior</option>
             </select>
+        </div>
+
+        <div class="form-group" id="grupoCalidadBordado" style="display:none;">
+            <label>📸 Foto de Control de Calidad (opcional)</label>
+            <input type="file" id="archivoCalidadBordado" accept="image/*" multiple>
+            <small style="color: #666;">Se guarda por separado, como respaldo del acabado final.</small>
         </div>
 
         <div class="form-group">
@@ -2048,6 +2083,8 @@ var qrcode = function() {
         document.getElementById('menuTareas').classList.add('active');
         let inputFecha = document.getElementById('inputFechaTareas');
         if (!inputFecha.value) inputFecha.value = new Date().toISOString().split('T')[0];
+        vistaTareasActual = 'lista';
+        actualizarVisibilidadTareas();
         pintarTareas();
       }
       document.getElementById('sidebar').classList.remove('open');
@@ -2208,6 +2245,11 @@ var qrcode = function() {
       if (sesionActual.rol === "Vendedor") { prepararEdicion(id); return; }
     }
 
+
+    function botonDuplicar_(t) {
+      if (sesionActual.rol !== 'Vendedor' && sesionActual.rol !== 'Administrador') return '';
+      return `<button class="btn-icon" style="border:1px solid #ddd; border-radius:8px; padding:10px 16px;" onclick="event.stopPropagation(); duplicarTicket('${t.id}')">🧬 Duplicar</button>`;
+    }
 
     function claseBadgePorEstatus(estatus) {
       let clase = "bg-nuevo";
@@ -2568,6 +2610,7 @@ var qrcode = function() {
               ${construirDetalleTicket(t)}
               <div style="display:flex; gap:10px; align-items:center; justify-content:flex-end; flex-wrap:wrap;">
                 <button class="btn-icon" style="border:1px solid #ddd; border-radius:8px; padding:10px 16px;" onclick="event.stopPropagation(); abrirModalEtiqueta('${t.id}')">🏷️ Etiqueta / QR</button>
+                ${botonDuplicar_(t)}
                 ${botonAtenderHTML}
               </div>
             </div>
@@ -2580,6 +2623,82 @@ var qrcode = function() {
     function hoyEnTareas() {
       document.getElementById('inputFechaTareas').value = new Date().toISOString().split('T')[0];
       pintarTareas();
+    }
+
+    // =========================================================================
+    // CALENDARIO MENSUAL (dentro de Tareas)
+    // =========================================================================
+    let vistaTareasActual = 'lista';
+    let mesCalendarioActual = new Date();
+
+    function actualizarVisibilidadTareas() {
+      let esLista = vistaTareasActual === 'lista';
+      document.getElementById('contenedorTareas').style.display = esLista ? 'block' : 'none';
+      document.getElementById('contenedorCalendario').style.display = esLista ? 'none' : 'block';
+      document.getElementById('grupoFechaTareas').style.display = esLista ? 'block' : 'none';
+      document.getElementById('btnToggleCalendario').innerText = esLista ? '📅 Ver Calendario' : '📋 Ver Lista';
+    }
+
+    function toggleVistaCalendario() {
+      vistaTareasActual = (vistaTareasActual === 'lista') ? 'calendario' : 'lista';
+      actualizarVisibilidadTareas();
+      if (vistaTareasActual === 'calendario') { mesCalendarioActual = new Date(); pintarCalendario(); }
+      else pintarTareas();
+    }
+
+    function cambiarMesCalendario(delta) {
+      mesCalendarioActual.setMonth(mesCalendarioActual.getMonth() + delta);
+      pintarCalendario();
+    }
+
+    function irADiaDesdeCalendario(fechaISO) {
+      document.getElementById('inputFechaTareas').value = fechaISO;
+      vistaTareasActual = 'lista';
+      actualizarVisibilidadTareas();
+      pintarTareas();
+    }
+
+    function pintarCalendario() {
+      let year = mesCalendarioActual.getFullYear();
+      let month = mesCalendarioActual.getMonth();
+      document.getElementById('tituloMesCalendario').innerText = mesCalendarioActual.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
+
+      // Cuántos tickets vencen cada día (solo lo que este rol puede ver), y la prioridad más alta de ese día.
+      const RANGO_PRIORIDAD = { atiempo: 0, urgente: 1, bomberazo: 2 };
+      let conteoPorDia = {};
+      ticketsVisibles.forEach(t => {
+        let fISO = fechaEntregaISO_(t);
+        if (!fISO) return;
+        let fDate = new Date(fISO + 'T00:00:00');
+        if (fDate.getFullYear() !== year || fDate.getMonth() !== month) return;
+        if (!conteoPorDia[fISO]) conteoPorDia[fISO] = { total: 0, nivelMax: null };
+        conteoPorDia[fISO].total++;
+        let p = calcularPrioridad(t);
+        if (p && (!conteoPorDia[fISO].nivelMax || RANGO_PRIORIDAD[p.nivel] > RANGO_PRIORIDAD[conteoPorDia[fISO].nivelMax])) {
+          conteoPorDia[fISO].nivelMax = p.nivel;
+        }
+      });
+
+      let primerDiaSemana = new Date(year, month, 1).getDay();
+      let diasEnMes = new Date(year, month + 1, 0).getDate();
+      let hoyISO = new Date().toISOString().split('T')[0];
+
+      let html = "";
+      ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].forEach(d => html += `<div class="calendario-encabezado">${d}</div>`);
+      for (let i = 0; i < primerDiaSemana; i++) html += `<div class="calendario-celda vacia"></div>`;
+
+      for (let dia = 1; dia <= diasEnMes; dia++) {
+        let fISO = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
+        let info = conteoPorDia[fISO];
+        let claseExtra = info && info.nivelMax ? ' prioridad-' + info.nivelMax : '';
+        let claseHoy = fISO === hoyISO ? ' calendario-hoy' : '';
+        html += `
+          <div class="calendario-celda${claseExtra}${claseHoy}" onclick="irADiaDesdeCalendario('${fISO}')">
+            <div class="calendario-numero">${dia}</div>
+            ${info ? `<div class="calendario-badge">${info.total}</div>` : ''}
+          </div>`;
+      }
+      document.getElementById('gridCalendario').innerHTML = html;
     }
 
     function imprimirEtiquetasDelDia() {
@@ -2623,6 +2742,62 @@ var qrcode = function() {
       setTimeout(() => window.print(), 200); // pequeña espera para que el DOM termine de pintarse
     }
 
+    // =========================================================================
+    // BÚSQUEDA GLOBAL (desde cualquier vista, en el sidebar)
+    // =========================================================================
+    function buscarGlobal() {
+      let texto = document.getElementById('inputBusquedaGlobal').value.toLowerCase().trim();
+      let contenedor = document.getElementById('resultadosBusquedaGlobal');
+      if (texto.length < 2) { contenedor.style.display = 'none'; contenedor.innerHTML = ""; return; }
+
+      let resultados = ticketsVisibles.filter(t =>
+        t.id.toLowerCase().includes(texto) ||
+        (t.cliente && t.cliente.toLowerCase().includes(texto)) ||
+        (t.folioVenta && t.folioVenta.toString().toLowerCase().includes(texto)) ||
+        (t.productoTecnica && t.productoTecnica.toLowerCase().includes(texto))
+      ).slice(0, 8);
+
+      if (resultados.length === 0) {
+        contenedor.innerHTML = '<p class="resultado-vacio">Sin coincidencias.</p>';
+        contenedor.style.display = 'block';
+        return;
+      }
+
+      contenedor.innerHTML = resultados.map(t => `
+        <div class="resultado-item" onclick="irATicketDesdeBusqueda('${t.id}')">
+          <strong>${t.id}</strong> · ${t.cliente}
+          <span class="badge ${claseBadgePorEstatus(t.estatus)}" style="margin-left:6px; font-size:0.7em;">${t.estatus}</span>
+        </div>
+      `).join('');
+      contenedor.style.display = 'block';
+    }
+
+    function irATicketDesdeBusqueda(id) {
+      document.getElementById('inputBusquedaGlobal').value = "";
+      document.getElementById('resultadosBusquedaGlobal').style.display = 'none';
+      cambiarVista('tickets');
+      filtroActualTarjetas = 'todos';
+      document.querySelectorAll('#vistaTickets .tab-btn').forEach(b => b.classList.remove('active-tab'));
+      let btnTodos = document.querySelector('#vistaTickets .tab-btn');
+      if (btnTodos) btnTodos.classList.add('active-tab');
+      document.getElementById('inputBuscarFolio').value = id;
+      pintarTarjetasVisuales(ticketsVisibles);
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('sidebarOverlay').classList.remove('active');
+      setTimeout(() => {
+        let tarjeta = document.getElementById('contenedorTarjetasVisuales').querySelector('.ticket-visual-card');
+        if (tarjeta) tarjeta.classList.add('expanded');
+      }, 50);
+    }
+
+    // Cierra el desplegable de resultados si se hace clic fuera de él.
+    document.addEventListener('click', function(e) {
+      let caja = document.querySelector('.busqueda-global');
+      if (caja && !caja.contains(e.target)) {
+        document.getElementById('resultadosBusquedaGlobal').style.display = 'none';
+      }
+    });
+
     function pintarTarjetasVisuales(tickets) {
       let contenedor = document.getElementById('contenedorTarjetasVisuales');
       let textoBusqueda = document.getElementById('inputBuscarFolio').value.toLowerCase().trim();
@@ -2663,6 +2838,7 @@ var qrcode = function() {
               ${construirDetalleTicket(t)}
               <div style="display:flex; gap:10px; align-items:center; justify-content:flex-end; flex-wrap:wrap;">
                 <button class="btn-icon" style="border:1px solid #ddd; border-radius:8px; padding:10px 16px;" onclick="event.stopPropagation(); abrirModalEtiqueta('${t.id}')">🏷️ Etiqueta / QR</button>
+                ${botonDuplicar_(t)}
                 ${botonAtenderHTML}
               </div>
             </div>
@@ -2678,6 +2854,25 @@ var qrcode = function() {
     function toggleCampoSinDiseno() {
       let esMaquila = document.getElementById('destinoPedido').value === 'Maquila';
       document.getElementById('grupoSinDiseno').style.display = esMaquila ? 'none' : 'block';
+    }
+
+    function duplicarTicket(id) {
+      let t = ticketsGlobal.find(x => x.id === id); if (!t) return;
+      document.getElementById('formTicket').reset();
+      document.getElementById('ticketId').value = ""; // vacío a propósito: crea un ticket nuevo, no edita el original
+      document.getElementById('modalTitulo').innerText = "Nuevo Pedido (duplicado de " + t.id + ")";
+      document.getElementById('infoEdicion').style.display = "none";
+      document.getElementById('archivoImagen').required = false; // mismo diseño/producto, no obligamos foto nueva
+      document.getElementById('cliente').value = t.cliente;
+      document.getElementById('cantidad').value = t.cantidad;
+      document.getElementById('productoTecnica').value = t.productoTecnica;
+      if (t.destino) document.getElementById('destinoPedido').value = t.destino;
+      document.getElementById('requiereDiseno').value = t.sinDiseno ? "no" : "si";
+      toggleCampoSinDiseno();
+      document.getElementById('folioVenta').value = ""; // el folio de venta siempre es nuevo
+      document.getElementById('fechaEntrega').value = ""; // la fecha de entrega también, la captura la persona
+      document.getElementById('notasVendedor').value = "";
+      document.getElementById('modalTicket').style.display = 'flex';
     }
 
     function abrirModalTicket() {
@@ -2725,6 +2920,7 @@ var qrcode = function() {
 
       let grupoArchivo = document.getElementById('grupoArchivoDiseno');
       let grupoMockupAccion = document.getElementById('grupoAccionMockup');
+      let grupoCalidadBordado = document.getElementById('grupoCalidadBordado');
       let grupoEstatus = document.getElementById('grupoEstatusDestino');
       let selectEstatus = document.getElementById('estatusDestinoSelect');
       let prefijo = document.getElementById('modalDisenoPrefijo');
@@ -2733,7 +2929,7 @@ var qrcode = function() {
       let btnGuardar = document.getElementById('btnGuardarDiseno');
 
       form.style.display = 'block'; aviso.style.display = 'none';
-      grupoArchivo.style.display = 'block'; grupoEstatus.style.display = 'block';
+      grupoArchivo.style.display = 'block'; grupoEstatus.style.display = 'block'; grupoCalidadBordado.style.display = 'none';
       btnGuardar.innerText = "Guardar Cambios y Procesar";
 
       let esBordadoPendiente = (t.destino === 'Maquila' && t.estatus === 'Nuevo / Pendiente Bordado');
@@ -2741,6 +2937,7 @@ var qrcode = function() {
 
       if (esBordadoPendiente && sesionActual.rol === 'Bordados') {
         grupoArchivo.style.display = 'none'; grupoMockupAccion.style.display = 'none';
+        grupoCalidadBordado.style.display = 'block';
         selectEstatus.innerHTML = '<option value="Terminado Pendiente de Recolección">✅ Marcar como Terminado (Pendiente de Recolección)</option>';
         prefijo.innerText = "Bordado"; btnGuardar.innerText = "Marcar como Terminado";
       } else if (t.destino === 'Maquila' && (esBordadoPendiente || esRecoleccion)) {
@@ -2886,17 +3083,19 @@ var qrcode = function() {
       btn.innerText = "Procesando..."; btn.disabled = true;
 
       procesarEnvioArchivos('archivoDiseno', async (archivos) => {
-        let datos = {
-          id: document.getElementById('ticketIdDiseno').value, notasDisenador: document.getElementById('notasDisenador').value,
-          estatusDestino: document.getElementById('estatusDestinoSelect').value, accionMockup: document.getElementById('accionMockup').value,
-          archivos: archivos
-        };
-        try {
-          let res = await llamarAPI('procesarTicketDiseno', datos);
-          btn.innerText = "Guardar Cambios y Procesar"; btn.disabled = false;
-          if(res.exito) { cerrarModalGeneral('modalDiseno'); mostrarAviso("Éxito", res.mensaje); cargarDatosDashboard(); }
-          else mostrarAviso("Atención", res.mensaje, true);
-        } catch(err) { btn.innerText = "Guardar Cambios y Procesar"; btn.disabled = false; mostrarAviso("Error", err.message, true); }
+        procesarEnvioArchivos('archivoCalidadBordado', async (archivosCalidad) => {
+          let datos = {
+            id: document.getElementById('ticketIdDiseno').value, notasDisenador: document.getElementById('notasDisenador').value,
+            estatusDestino: document.getElementById('estatusDestinoSelect').value, accionMockup: document.getElementById('accionMockup').value,
+            archivos: archivos, archivosCalidad: archivosCalidad
+          };
+          try {
+            let res = await llamarAPI('procesarTicketDiseno', datos);
+            btn.innerText = "Guardar Cambios y Procesar"; btn.disabled = false;
+            if(res.exito) { cerrarModalGeneral('modalDiseno'); mostrarAviso("Éxito", res.mensaje); cargarDatosDashboard(); }
+            else mostrarAviso("Atención", res.mensaje, true);
+          } catch(err) { btn.innerText = "Guardar Cambios y Procesar"; btn.disabled = false; mostrarAviso("Error", err.message, true); }
+        });
       });
     }
 
