@@ -1970,6 +1970,30 @@ var qrcode = function() {
   </div>
 
   <script>
+ 
+    const APP_VERSION = "2026-08-25-01";
+
+    async function revisarActualizacionDisponible() {
+      try {
+        // No interrumpas a alguien con un formulario/modal abierto a la mitad.
+        let hayModalAbierto = Array.from(document.querySelectorAll('.modal-overlay')).some(m => getComputedStyle(m).display !== 'none');
+        if (hayModalAbierto) return;
+
+        let resp = await fetch(window.location.pathname + '?_chk=' + Date.now(), { cache: 'no-store' });
+        let texto = await resp.text();
+        let match = texto.match(/const APP_VERSION = "([^"]+)"/);
+        if (match && match[1] !== APP_VERSION) {
+          if (window.caches) {
+            try { let nombres = await caches.keys(); await Promise.all(nombres.map(n => caches.delete(n))); } catch (e) {}
+          }
+          window.location.reload();
+        }
+      } catch (e) { /* sin conexión: seguimos con lo que ya está cargado, se reintenta después */ }
+    }
+    revisarActualizacionDisponible();
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') revisarActualizacionDisponible(); });
+    setInterval(revisarActualizacionDisponible, 10 * 60 * 1000);
+
     // =========================================================================
     // 🔔 NOTIFICACIONES PUSH (Firebase Cloud Messaging)
     // firebaseConfig no es secreto, es seguro que viva en el frontend.
