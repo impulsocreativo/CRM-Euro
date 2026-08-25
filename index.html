@@ -80,6 +80,14 @@
     .gallery-images iframe { width: 140px; height: 140px; border: 1px solid #ccc; border-radius: 6px; background: #fff; flex-shrink: 0; }
     
     .ticket-meta-info { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.95em; border: 1px solid #eee; }
+    .timeline { position: relative; margin: 10px 0 20px 0; padding-left: 22px; }
+    .timeline::before { content: ''; position: absolute; left: 5px; top: 4px; bottom: 4px; width: 2px; background: #e0e0e0; }
+    .timeline-item { position: relative; margin-bottom: 14px; }
+    .timeline-dot { position: absolute; left: -22px; top: 3px; width: 10px; height: 10px; border-radius: 50%; background: var(--euro-red); border: 2px solid #fff; box-shadow: 0 0 0 1px #ddd; }
+    .timeline-sistema .timeline-dot { background: #b8b8b8; }
+    .timeline-meta { font-size: 0.78em; color: #888; margin-bottom: 2px; }
+    .timeline-msg { font-size: 0.92em; color: #333; white-space: pre-wrap; }
+    .timeline-sistema .timeline-msg { color: #888; font-style: italic; }
     .ticket-meta-info p { margin: 6px 0; white-space: pre-wrap; }
 
     .btn-produccion { background-color: var(--euro-red); color: white; border: none; padding: 12px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; }
@@ -176,11 +184,15 @@
       .card { padding: 15px; }
     }
 
+    #loteEtiquetasPrint { position: absolute; left: -9999px; top: 0; }
+
     @media print {
       body * { visibility: hidden; }
       #contenidoEtiqueta, #contenidoEtiqueta * { visibility: visible; }
       #contenidoEtiqueta { position: fixed; top: 0; left: 0; width: 100%; box-shadow: none; }
       #contenidoEtiqueta .btn-close, #contenidoEtiqueta button { display: none; }
+      #loteEtiquetasPrint, #loteEtiquetasPrint * { visibility: visible; }
+      #loteEtiquetasPrint { position: static; left: 0; }
     }
   </style>
   <!-- Firebase (solo para notificaciones push; firebaseConfig no es secreto) -->
@@ -1569,6 +1581,7 @@ var qrcode = function() {
       <nav class="nav-menu">
         <button class="nav-btn active" id="menuDashboard" onclick="cambiarVista('dashboard')">📊 Panel de Control</button>
         <button class="nav-btn" id="menuTicketsVisuales" style="display:none;" onclick="navegarDesdeDashboard('todos')">🎫 Tickets</button>
+        <button class="nav-btn" id="menuTareas" style="display:none;" onclick="cambiarVista('tareas')">📋 Tareas</button>
         <button class="nav-btn" id="btnMenuNuevoTicket" style="display:none;" onclick="abrirModalTicket()">➕ Nuevo Pedido</button>
         <button class="nav-btn" id="btnMenuGestionUsuarios" style="display:none;" onclick="abrirModalUsuarios()">👤 Gestionar Usuarios</button>
         <button class="nav-btn" id="btnActivarNotificaciones" onclick="activarNotificaciones()">🔔 Activar Notificaciones</button>
@@ -1586,6 +1599,7 @@ var qrcode = function() {
           <div class="card">
             <h1>Panel de Control</h1>
             <p class="subtitle" id="saludoDashboard">Bienvenido al sistema del taller.</p>
+            <p id="avisoSinConexion" style="display:none; background:#fff3cd; color:#856404; border:1px solid #ffeeba; padding:10px 15px; border-radius:8px; font-size:0.9em; margin-top:-8px;"></p>
             
             <div class="dashboard-stats">
               <div class="stat-card stat-total" onclick="navegarDesdeDashboard('todos')">
@@ -1641,6 +1655,22 @@ var qrcode = function() {
               </div>
             </div>
             <div id="contenedorTarjetasVisuales"></div>
+          </div>
+        </div>
+
+        <div id="vistaTareas" class="view-section">
+          <div class="card">
+            <h1>📋 Tareas</h1>
+            <p style="color:#666; margin-top:-10px;">Pedidos según su fecha de entrega. Por defecto, los de hoy.</p>
+            <div class="filter-header-bar">
+              <div class="form-group" style="margin:0;">
+                <label style="font-size:0.85em;">Fecha</label>
+                <input type="date" id="inputFechaTareas" onchange="pintarTareas()">
+              </div>
+              <button class="btn-actualizar" onclick="hoyEnTareas()">Hoy</button>
+              <button class="btn-submit" style="width:auto; padding:10px 20px; background-color: var(--euro-black);" onclick="imprimirEtiquetasDelDia()">🖨️ Imprimir Etiquetas del Día</button>
+            </div>
+            <div id="contenedorTareas"></div>
           </div>
         </div>
 
@@ -1798,6 +1828,9 @@ var qrcode = function() {
       <button class="btn-submit" onclick="window.print()" style="margin-top:15px;">🖨️ Imprimir Etiqueta</button>
     </div>
   </div>
+
+  <!-- Contenedor oculto para imprimir varias etiquetas de golpe (Tareas del día) -->
+  <div id="loteEtiquetasPrint"></div>
 
   <!-- MODAL AVISOS -->
   <div class="modal-overlay" id="modalAviso" style="z-index: 3000;">
@@ -1982,6 +2015,12 @@ var qrcode = function() {
         document.getElementById('vistaTickets').classList.add('active-view');
         document.getElementById('menuTicketsVisuales').classList.add('active');
         pintarTarjetasVisuales(ticketsVisibles);
+      } else if(vista === 'tareas') {
+        document.getElementById('vistaTareas').classList.add('active-view');
+        document.getElementById('menuTareas').classList.add('active');
+        let inputFecha = document.getElementById('inputFechaTareas');
+        if (!inputFecha.value) inputFecha.value = new Date().toISOString().split('T')[0];
+        pintarTareas();
       }
       document.getElementById('sidebar').classList.remove('open');
       document.getElementById('sidebarOverlay').classList.remove('active');
@@ -2016,6 +2055,7 @@ var qrcode = function() {
           document.getElementById('perfilNombre').innerText = sesionActual.nombre;
           document.getElementById('perfilRol').innerText = sesionActual.rol;
           document.getElementById('menuTicketsVisuales').style.display = 'flex';
+          document.getElementById('menuTareas').style.display = 'flex';
           document.getElementById('btnMenuGestionUsuarios').style.display = 'none';
 
           if (sesionActual.rol === "Jefe de Taller") {
@@ -2162,11 +2202,45 @@ var qrcode = function() {
     // =========================================================================
     // DASHBOARD Y LISTAS
     // =========================================================================
+    const LS_CACHE_TICKETS = "crmEuroCacheTickets";
+    const LS_CACHE_FECHA = "crmEuroCacheFecha";
+
     async function cargarDatosDashboard() {
       try {
         let res = await llamarAPI('obtenerTickets');
+        localStorage.setItem(LS_CACHE_TICKETS, JSON.stringify(res));
+        localStorage.setItem(LS_CACHE_FECHA, new Date().toISOString());
+        ocultarAvisoSinConexion();
         pintarDashboard(res);
-      } catch (err) { mostrarAviso("Error", err.message, true); }
+      } catch (err) {
+        // Sin conexión (o el backend no respondió): si hay datos guardados de una carga anterior,
+        // los usamos para que la app no se quede en blanco, avisando que están desactualizados.
+        let cacheGuardado = localStorage.getItem(LS_CACHE_TICKETS);
+        if (cacheGuardado) {
+          try {
+            let tickets = JSON.parse(cacheGuardado);
+            let fechaCache = localStorage.getItem(LS_CACHE_FECHA);
+            mostrarAvisoSinConexion(fechaCache);
+            pintarDashboard(tickets);
+            return;
+          } catch (e) { /* si el cache está corrupto, cae al mensaje de error normal */ }
+        }
+        mostrarAviso("Error", err.message, true);
+      }
+    }
+
+    function mostrarAvisoSinConexion(fechaCacheISO) {
+      let banner = document.getElementById('avisoSinConexion');
+      let texto = "Sin conexión — mostrando datos guardados";
+      if (fechaCacheISO) {
+        let f = new Date(fechaCacheISO);
+        texto += " de " + f.toLocaleDateString() + " " + f.toLocaleTimeString();
+      }
+      banner.innerText = "⚠️ " + texto + ".";
+      banner.style.display = 'block';
+    }
+    function ocultarAvisoSinConexion() {
+      document.getElementById('avisoSinConexion').style.display = 'none';
     }
 
     function renderizarListaMovimientos(tickets) {
@@ -2323,6 +2397,46 @@ var qrcode = function() {
     // Contenido compartido del "detalle" de un ticket: fotos, mockups y notas.
     // Se usa tanto en la vista de Tickets como en el Dashboard (Últimos Movimientos),
     // así la regla de qué puede ver el Jefe de Taller vive en un solo lugar.
+    // Las notas se guardan como texto plano con formato "[fecha - autor]: mensaje" separado por
+    // líneas en blanco. Esto las convierte en eventos individuales para pintar como línea de tiempo.
+    function parsearNotas_(texto) {
+      if (!texto) return [];
+      return texto.split("\n\n").map(bloque => {
+        let match = bloque.match(/^\[([\d/: ]+) - ([^\]]+)\]:\s*([\s\S]*)$/);
+        if (!match) return null;
+        return { fechaTexto: match[1].trim(), autor: match[2].trim(), mensaje: match[3].trim() };
+      }).filter(x => x && x.mensaje !== "");
+    }
+
+    function fechaTextoAOrden_(fechaTexto) {
+      // Formato esperado: dd/MM/yyyy HH:mm:ss
+      let m = fechaTexto.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
+      if (!m) return 0;
+      return new Date(m[3], m[2] - 1, m[1], m[4], m[5], m[6]).getTime();
+    }
+
+    function construirLineaDeTiempo(t) {
+      let eventos = parsearNotas_(t.notasVendedor).concat(parsearNotas_(t.notasDisenador));
+      eventos.sort((a, b) => fechaTextoAOrden_(a.fechaTexto) - fechaTextoAOrden_(b.fechaTexto));
+
+      if (eventos.length === 0) return '<p style="color:#888; font-size:0.9em;">Sin historial todavía.</p>';
+
+      let html = '<div class="timeline">';
+      eventos.forEach(ev => {
+        let esSistema = ev.autor === 'Sistema';
+        html += `
+          <div class="timeline-item${esSistema ? ' timeline-sistema' : ''}">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+              <div class="timeline-meta"><strong>${ev.autor}</strong> · ${ev.fechaTexto}</div>
+              <div class="timeline-msg">${ev.mensaje}</div>
+            </div>
+          </div>`;
+      });
+      html += '</div>';
+      return html;
+    }
+
     function construirDetalleTicket(t) {
       let esJefeTaller = sesionActual.rol === "Jefe de Taller";
       let mostrarFotosVendedor = !esJefeTaller || t.sinDiseno === true;
@@ -2369,9 +2483,110 @@ var qrcode = function() {
         <div class="ticket-meta-info">
           <p><strong>Producto:</strong> ${t.productoTecnica} (${t.cantidad} pz)</p>
           <p><strong>Destino:</strong> ${t.destino || 'Taller'}</p>
-          <p><strong>Notas de Vendedor:</strong>\n${t.notasVendedor || "Ninguna"}</p>
-          <p><strong>Notas de Taller / Diseño:</strong>\n${t.notasDisenador || "Sin notas previas."}</p>
-        </div>`;
+        </div>
+        <strong>Historial:</strong>
+        ${construirLineaDeTiempo(t)}`;
+    }
+
+    function fechaEntregaISO_(t) {
+      if (!t.fechaEntrega) return null;
+      let f = new Date(t.fechaEntrega);
+      f.setMinutes(f.getMinutes() + f.getTimezoneOffset()); // corrige el desfase de zona horaria, igual que calcularPrioridad
+      return f.toISOString().split('T')[0];
+    }
+
+    function pintarTareas() {
+      let fechaSel = document.getElementById('inputFechaTareas').value;
+      let contenedor = document.getElementById('contenedorTareas');
+      if (!fechaSel) { contenedor.innerHTML = ""; return; }
+
+      let ticketsDelDia = ticketsVisibles.filter(t => fechaEntregaISO_(t) === fechaSel);
+
+      if (ticketsDelDia.length === 0) {
+        contenedor.innerHTML = '<p style="text-align:center; color:#777; padding:30px;">No hay pedidos con fecha de entrega ese día.</p>';
+        return;
+      }
+
+      // Bomberazo primero, luego urgente, el resto al final.
+      const ORDEN_PRIORIDAD = { bomberazo: 0, urgente: 1, atiempo: 2 };
+      ticketsDelDia.sort((a, b) => {
+        let pa = calcularPrioridad(a), pb = calcularPrioridad(b);
+        return (pa ? ORDEN_PRIORIDAD[pa.nivel] : 3) - (pb ? ORDEN_PRIORIDAD[pb.nivel] : 3);
+      });
+
+      let html = "";
+      ticketsDelDia.forEach(t => {
+        let prioridad = calcularPrioridad(t);
+        let claseCard = prioridad ? 'prioridad-' + prioridad.nivel : '';
+        let iconoTicket = prioridad ? prioridad.icono : '🎫';
+        let claseBadge = claseBadgePorEstatus(t.estatus);
+        let textoFolioPOS = t.folioVenta ? ` | POS: ${t.folioVenta}` : "";
+        let botonAtenderHTML = generarBotonesAccion(t, false);
+        if (botonAtenderHTML === "") botonAtenderHTML = `<p style="color:#888; font-size:0.9em;">Sin acciones.</p>`;
+
+        html += `
+          <div class="ticket-visual-card ${claseCard}">
+            <div class="ticket-card-header" onclick="this.parentElement.classList.toggle('expanded')">
+              <h3><span>${iconoTicket} ${t.id} - ${t.cliente} ${textoFolioPOS}</span></h3>
+              <span class="badge ${claseBadge}">${t.estatus}</span>
+            </div>
+            <div class="ticket-card-body" style="padding: 20px;">
+              ${construirDetalleTicket(t)}
+              <div style="display:flex; gap:10px; align-items:center; justify-content:flex-end; flex-wrap:wrap;">
+                <button class="btn-icon" style="border:1px solid #ddd; border-radius:8px; padding:10px 16px;" onclick="event.stopPropagation(); abrirModalEtiqueta('${t.id}')">🏷️ Etiqueta / QR</button>
+                ${botonAtenderHTML}
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      contenedor.innerHTML = html;
+    }
+
+    function hoyEnTareas() {
+      document.getElementById('inputFechaTareas').value = new Date().toISOString().split('T')[0];
+      pintarTareas();
+    }
+
+    function imprimirEtiquetasDelDia() {
+      let fechaSel = document.getElementById('inputFechaTareas').value;
+      if (!fechaSel) { mostrarAviso("Atención", "Selecciona una fecha primero.", true); return; }
+
+      let ticketsDelDia = ticketsVisibles.filter(t => fechaEntregaISO_(t) === fechaSel);
+      if (ticketsDelDia.length === 0) {
+        mostrarAviso("Atención", "No hay tickets con fecha de entrega ese día para imprimir.", true);
+        return;
+      }
+
+      let contenedor = document.getElementById('loteEtiquetasPrint');
+      contenedor.innerHTML = "";
+
+      ticketsDelDia.forEach(t => {
+        let bloque = document.createElement('div');
+        bloque.style.cssText = "page-break-after: always; text-align:center; padding:30px;";
+
+        let qrHtml = "";
+        try {
+          let textoQR = `Ticket: ${t.id}\nPOS: ${t.folioVenta || "Sin folio"}\nCliente: ${t.cliente}\nPiezas: ${t.cantidad}\nTecnica: ${t.productoTecnica}`;
+          let qr = generarQRAutoAjustado_(textoQR, 'L');
+          qrHtml = qr.createSvgTag(4, 8);
+        } catch (e) { qrHtml = '<p>QR no disponible</p>'; }
+
+        bloque.innerHTML = `
+          <h2 style="margin:0 0 15px 0;">Etiqueta de Ticket</h2>
+          <div style="display:inline-block;">${qrHtml}</div>
+          <div style="text-align:left; display:inline-block; background:#f8f9fa; padding:15px; border-radius:8px; margin-top:15px; font-size:1em;">
+            <p style="margin:4px 0;"><strong>Ticket:</strong> ${t.id}</p>
+            <p style="margin:4px 0;"><strong>POS:</strong> ${t.folioVenta || "Sin folio"}</p>
+            <p style="margin:4px 0;"><strong>Cliente:</strong> ${t.cliente}</p>
+            <p style="margin:4px 0;"><strong>Piezas:</strong> ${t.cantidad}</p>
+            <p style="margin:4px 0;"><strong>Técnica:</strong> ${t.productoTecnica}</p>
+          </div>
+        `;
+        contenedor.appendChild(bloque);
+      });
+
+      setTimeout(() => window.print(), 200); // pequeña espera para que el DOM termine de pintarse
     }
 
     function pintarTarjetasVisuales(tickets) {
