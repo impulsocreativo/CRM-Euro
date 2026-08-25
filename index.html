@@ -194,6 +194,7 @@
     .bg-terminado { background-color: #27ae60; color: white; }
     .bg-entregado { background-color: #2980b9; color: white; }
     .bg-recoleccion { background-color: #8e44ad; color: white; }
+    .bg-aprobacion { background-color: #2980b9; color: white; }
     .prioridad-atiempo, .prioridad-atiempo .ticket-card-header, .prioridad-atiempo .ticket-card-body, .movimiento-item.prioridad-atiempo { background-color: #eafaf1 !important; border-left: 5px solid #27ae60; }
     .prioridad-urgente, .prioridad-urgente .ticket-card-header, .prioridad-urgente .ticket-card-body, .movimiento-item.prioridad-urgente { background-color: #fef5e7 !important; border-left: 5px solid #f39c12; }
     .prioridad-bomberazo, .prioridad-bomberazo .ticket-card-header, .prioridad-bomberazo .ticket-card-body, .movimiento-item.prioridad-bomberazo { background-color: #fdecea !important; border-left: 5px solid #c0392b; }
@@ -1903,6 +1904,24 @@ var qrcode = function() {
     </div>
   </div>
 
+  <!-- MODAL APROBACIÓN DE MOCKUP CON EL CLIENTE (Vendedor/Admin) -->
+  <div class="modal-overlay" id="modalAprobacionMockup">
+    <div class="modal-content" style="max-width:520px;">
+      <button class="btn-close" onclick="cerrarModalGeneral('modalAprobacionMockup')">&times;</button>
+      <h2 style="margin-top:0; color: var(--euro-black);">Revisar Mockup con el Cliente</h2>
+      <p style="color:#555; margin-bottom:15px;">Ticket <strong id="aprobMockupId"></strong> — <span id="aprobMockupCliente"></span></p>
+      <div id="aprobMockupGaleria" class="gallery-images"></div>
+      <div class="form-group">
+        <label>Comentario (opcional — ej. qué pidió cambiar el cliente)</label>
+        <textarea id="aprobMockupComentario" rows="2"></textarea>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
+        <button type="button" class="btn-submit" style="background-color:#27ae60; flex:1;" onclick="responderAprobacionMockup(true)">✅ Cliente Aprobó</button>
+        <button type="button" class="btn-submit" style="background-color:#c0392b; flex:1;" onclick="responderAprobacionMockup(false)">❌ Rechazado, pedir cambios</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL GESTIÓN DE USUARIOS (Solo Administrador) -->
   <div class="modal-overlay" id="modalUsuarios">
     <div class="modal-content">
@@ -1970,8 +1989,15 @@ var qrcode = function() {
   </div>
 
   <script>
- 
-    const APP_VERSION = "2026-08-25-01";
+    // =========================================================================
+    // 🔄 AUTO-ACTUALIZACIÓN — evita tener que borrar caché a mano en el celular.
+    // Compara esta versión contra la que está publicada AHORA MISMO en GitHub
+    // (con cache:'no-store', o sea sin usar ninguna caché) y si son distintas,
+    // recarga sola. Se revisa al abrir la app, al volver a primer plano, y cada
+    // 10 minutos como respaldo. IMPORTANTE: sube esta constante cada vez que
+    // subas cambios importantes, si no, esto no detecta nada nuevo.
+    // =========================================================================
+    const APP_VERSION = "2026-08-25-02";
 
     async function revisarActualizacionDisponible() {
       try {
@@ -2300,6 +2326,7 @@ var qrcode = function() {
       let esBordadoPendiente = (t.destino === 'Maquila' && t.estatus === 'Nuevo / Pendiente Bordado');
       let esRecoleccion = (t.estatus === 'Terminado Pendiente de Recolección');
       let esTerminado = (t.estatus === 'Terminado');
+      let esperandoAprobacion = (t.estatus === 'Mockup Enviado - Esperando Aprobación');
       let claseBtn = esMobile ? "mobile-action-btn" : "desktop-action-btn";
 
       const disabledBtn = (iconoMobile, textoDesktop) => `<button class="${claseBtn}" style="cursor:not-allowed; ${esMobile ? 'background:#b8b8b8;' : 'background:#eee;'}" disabled>${esMobile ? iconoMobile : textoDesktop}</button>`;
@@ -2313,6 +2340,12 @@ var qrcode = function() {
       }
       if (esTerminado && (sesionActual.rol === 'Vendedor' || sesionActual.rol === 'Administrador')) {
         return accionBtn('📦', '📦 Entregar al Cliente', 'style="background:#27ae60;"', 'style="background:#eafaf1; color:#27ae60;"');
+      }
+      if (esperandoAprobacion && (sesionActual.rol === 'Vendedor' || sesionActual.rol === 'Administrador')) {
+        return accionBtn('🖼️', '🖼️ Revisar Mockup', 'style="background:#2980b9;"', 'style="background:#eaf2fb; color:#2980b9;"');
+      }
+      if (esperandoAprobacion) {
+        return disabledBtn('⏳', '⏳ Esperando Cliente');
       }
       if (t.destino === 'Maquila' && (esBordadoPendiente || esRecoleccion) && (sesionActual.rol === 'Diseñador' || sesionActual.rol === 'Jefe de Taller')) {
         return disabledBtn('🔒', '🔒 Solo Lectura');
@@ -2344,10 +2377,13 @@ var qrcode = function() {
       let esBordadoPendiente = (t.destino === 'Maquila' && t.estatus === 'Nuevo / Pendiente Bordado');
       let esRecoleccion = (t.estatus === 'Terminado Pendiente de Recolección');
       let esTerminado = (t.estatus === 'Terminado');
+      let esperandoAprobacion = (t.estatus === 'Mockup Enviado - Esperando Aprobación');
 
       if (esBordadoPendiente && sesionActual.rol === 'Bordados') { abrirModalDisenador(id); return; }
       if (esRecoleccion && (sesionActual.rol === 'Vendedor' || sesionActual.rol === 'Administrador')) { abrirModalEstatusRapido(id, 'Recibido en Tienda'); return; }
       if (esTerminado && (sesionActual.rol === 'Vendedor' || sesionActual.rol === 'Administrador')) { abrirModalEstatusRapido(id, 'Entregado al Cliente'); return; }
+      if (esperandoAprobacion && (sesionActual.rol === 'Vendedor' || sesionActual.rol === 'Administrador')) { abrirModalAprobacionMockup(id); return; }
+      if (esperandoAprobacion) { return; }
       if (t.destino === 'Maquila' && (esBordadoPendiente || esRecoleccion) && (sesionActual.rol === 'Diseñador' || sesionActual.rol === 'Jefe de Taller')) { return; }
       if (t.estatus === "Entregado") { return; }
       if (sesionActual.rol === "Jefe de Taller") {
@@ -2371,6 +2407,7 @@ var qrcode = function() {
       if (estatus === "Terminado") clase = "bg-terminado";
       if (estatus === "Entregado") clase = "bg-entregado";
       if (estatus === "Terminado Pendiente de Recolección") clase = "bg-recoleccion";
+      if (estatus === "Mockup Enviado - Esperando Aprobación") clase = "bg-aprobacion";
       return clase;
     }
 
@@ -2986,7 +3023,7 @@ var qrcode = function() {
       let lista = ticketsVisibles;
 
       if (filtroActualTarjetas === 'terminados') lista = lista.filter(t => t.estatus === "Terminado");
-      else if (filtroActualTarjetas === 'pendientes') lista = lista.filter(t => t.estatus.includes("Producción") || t.estatus === "Nuevo / Pendiente Bordado");
+      else if (filtroActualTarjetas === 'pendientes') lista = lista.filter(t => t.estatus.includes("Producción") || t.estatus === "Nuevo / Pendiente Bordado" || t.estatus === "Mockup Enviado - Esperando Aprobación");
       else if (filtroActualTarjetas === 'nuevos') lista = lista.filter(t => t.estatus === "Nuevo / Pendiente Diseño");
       else if (filtroActualTarjetas === 'entregados') lista = lista.filter(t => t.estatus === "Entregado");
       else if (filtroActualTarjetas === 'recoleccion') lista = lista.filter(t => t.estatus === "Terminado Pendiente de Recolección");
@@ -3020,7 +3057,7 @@ var qrcode = function() {
       let listaFiltrada = [];
 
       if (filtroActualTarjetas === 'terminados') listaFiltrada = tickets.filter(t => t.estatus === "Terminado");
-      else if (filtroActualTarjetas === 'pendientes') listaFiltrada = tickets.filter(t => t.estatus.includes("Producción") || t.estatus === "Nuevo / Pendiente Bordado");
+      else if (filtroActualTarjetas === 'pendientes') listaFiltrada = tickets.filter(t => t.estatus.includes("Producción") || t.estatus === "Nuevo / Pendiente Bordado" || t.estatus === "Mockup Enviado - Esperando Aprobación");
       else if (filtroActualTarjetas === 'nuevos') listaFiltrada = tickets.filter(t => t.estatus === "Nuevo / Pendiente Diseño");
       else if (filtroActualTarjetas === 'entregados') listaFiltrada = tickets.filter(t => t.estatus === "Entregado");
       else if (filtroActualTarjetas === 'recoleccion') listaFiltrada = tickets.filter(t => t.estatus === "Terminado Pendiente de Recolección");
@@ -3150,6 +3187,7 @@ var qrcode = function() {
 
       let esBordadoPendiente = (t.destino === 'Maquila' && t.estatus === 'Nuevo / Pendiente Bordado');
       let esRecoleccion = (t.estatus === 'Terminado Pendiente de Recolección');
+      let esperandoAprobacion = (t.estatus === 'Mockup Enviado - Esperando Aprobación');
 
       if (esBordadoPendiente && sesionActual.rol === 'Bordados') {
         grupoArchivo.style.display = 'none'; grupoMockupAccion.style.display = 'none';
@@ -3158,12 +3196,64 @@ var qrcode = function() {
         prefijo.innerText = "Bordado"; btnGuardar.innerText = "Marcar como Terminado";
       } else if (t.destino === 'Maquila' && (esBordadoPendiente || esRecoleccion)) {
         form.style.display = 'none'; aviso.style.display = 'block'; prefijo.innerText = "Ticket";
+      } else if (esperandoAprobacion) {
+        // Mientras espera al cliente, aquí solo se puede VER (Diseño/Taller); quien
+        // aprueba/rechaza usa abrirModalAprobacionMockup, no este modal.
+        form.style.display = 'none'; aviso.style.display = 'block';
+        document.getElementById('avisoSoloLectura').innerText = "Esperando que el Vendedor confirme la aprobación del cliente.";
+        prefijo.innerText = "Ticket";
       } else {
         grupoMockupAccion.style.display = (t.urlMockup && t.urlMockup.trim() !== "") ? 'block' : 'none';
-        selectEstatus.innerHTML = `<option value="Listo para Producción">Enviar a Producción</option><option value="Terminado">Pedido Terminado / En Tienda</option><option value="Entregado">📦 Entregado al Cliente</option>`;
+        selectEstatus.innerHTML = `<option value="Listo para Producción">Enviar a Producción (sin aprobación)</option><option value="Mockup Enviado - Esperando Aprobación">📨 Enviar Mockup para Aprobación del Cliente</option><option value="Terminado">Pedido Terminado / En Tienda</option><option value="Entregado">📦 Entregado al Cliente</option>`;
         prefijo.innerText = "Atender Ticket";
       }
       document.getElementById('modalDiseno').style.display = 'flex';
+    }
+
+    // =========================================================================
+    // APROBACIÓN DE MOCKUP CON EL CLIENTE
+    // El Vendedor/Admin revisa el mockup y confirma si el cliente lo aprobó o
+    // pidió cambios. Si lo rechaza, el ticket regresa a Diseño con el comentario.
+    // =========================================================================
+    let aprobMockupTicketId = null;
+
+    function abrirModalAprobacionMockup(id) {
+      let t = ticketsGlobal.find(x => x.id === id); if (!t) return;
+      aprobMockupTicketId = t.id;
+      document.getElementById('aprobMockupId').innerText = t.id;
+      document.getElementById('aprobMockupCliente').innerText = t.cliente;
+      document.getElementById('aprobMockupComentario').value = "";
+
+      let galeria = document.getElementById('aprobMockupGaleria');
+      galeria.innerHTML = "";
+      if (t.urlMockup) {
+        t.urlMockup.split("\n").forEach(l => {
+          if (l.trim() !== "" && !l.includes("---")) {
+            let urlM = l.includes("drive.google.com") ? l.replace("/view?usp=drivesdk", "").replace("/edit?usp=sharing", "") + "/preview" : l;
+            galeria.innerHTML += `<iframe src="${urlM}" frameborder="0"></iframe>`;
+          }
+        });
+      }
+      if (galeria.innerHTML === "") galeria.innerHTML = "<p style='color:#888;'>No hay mockup adjunto.</p>";
+
+      document.getElementById('modalAprobacionMockup').style.display = 'flex';
+    }
+
+    async function responderAprobacionMockup(aprobado) {
+      let comentario = document.getElementById('aprobMockupComentario').value.trim();
+      let nuevoEstatus = aprobado ? "Listo para Producción" : "Nuevo / Pendiente Diseño";
+      let nota = aprobado
+        ? ("Cliente aprobó el mockup." + (comentario ? " " + comentario : ""))
+        : ("Cliente pidió cambios: " + (comentario || "sin detalle, preguntar al vendedor."));
+
+      let botones = document.querySelectorAll('#modalAprobacionMockup .btn-submit');
+      botones.forEach(b => b.disabled = true);
+      try {
+        let res = await llamarAPI('procesarTicketDiseno', { id: aprobMockupTicketId, estatusDestino: nuevoEstatus, notasDisenador: nota, archivos: [] });
+        botones.forEach(b => b.disabled = false);
+        if (res.exito) { cerrarModalGeneral('modalAprobacionMockup'); mostrarAviso("Listo", res.mensaje); cargarDatosDashboard(); }
+        else mostrarAviso("Atención", res.mensaje, true);
+      } catch (err) { botones.forEach(b => b.disabled = false); mostrarAviso("Error", err.message, true); }
     }
 
     let rapidoTicketId = null, rapidoEstatusDestino = null, rapidoNotaAuto = null;
@@ -3206,13 +3296,13 @@ var qrcode = function() {
     // puede corregir cualquier ticket a cualquier estatus.
     // =========================================================================
     function estatusCorregiblesPorRol_() {
-      const TODOS = ["Nuevo / Pendiente Diseño", "Nuevo / Pendiente Bordado", "Listo para Producción", "Terminado Pendiente de Recolección", "Terminado", "Entregado"];
+      const TODOS = ["Nuevo / Pendiente Diseño", "Nuevo / Pendiente Bordado", "Listo para Producción", "Mockup Enviado - Esperando Aprobación", "Terminado Pendiente de Recolección", "Terminado", "Entregado"];
       switch (sesionActual.rol) {
         case 'Administrador': return TODOS;
-        case 'Vendedor': return ["Terminado Pendiente de Recolección", "Terminado", "Entregado"];
+        case 'Vendedor': return ["Mockup Enviado - Esperando Aprobación", "Terminado Pendiente de Recolección", "Terminado", "Entregado"];
         case 'Jefe de Taller': return ["Listo para Producción", "Terminado"];
         case 'Bordados': return ["Nuevo / Pendiente Bordado", "Terminado Pendiente de Recolección"];
-        case 'Diseñador': return ["Nuevo / Pendiente Diseño", "Listo para Producción"];
+        case 'Diseñador': return ["Nuevo / Pendiente Diseño", "Mockup Enviado - Esperando Aprobación", "Listo para Producción"];
         default: return [];
       }
     }
@@ -3342,7 +3432,8 @@ var qrcode = function() {
           fechaEntrega: document.getElementById('fechaEntrega').value, folioVenta: document.getElementById('folioVenta').value,
           destino: document.getElementById('destinoPedido').value, productoTecnica: document.getElementById('productoTecnica').value,
           notasVendedor: document.getElementById('notasVendedor').value, archivos: archivos,
-          sinDiseno: (document.getElementById('requiereDiseno').value === 'no')
+          sinDiseno: (document.getElementById('requiereDiseno').value === 'no'),
+          usuario: sesionActual.usuario // se guarda oculto, solo para saber a quién avisarle después
         };
         let accion = idTicket ? "actualizarTicket" : "registrarNuevoTicket";
         
