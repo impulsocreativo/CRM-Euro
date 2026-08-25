@@ -1997,7 +1997,7 @@ var qrcode = function() {
     // 10 minutos como respaldo. IMPORTANTE: sube esta constante cada vez que
     // subas cambios importantes, si no, esto no detecta nada nuevo.
     // =========================================================================
-    const APP_VERSION = "2026-08-25-02";
+    const APP_VERSION = "2026-08-25-03";
 
     async function revisarActualizacionDisponible() {
       try {
@@ -3249,7 +3249,7 @@ var qrcode = function() {
       let botones = document.querySelectorAll('#modalAprobacionMockup .btn-submit');
       botones.forEach(b => b.disabled = true);
       try {
-        let res = await llamarAPI('procesarTicketDiseno', { id: aprobMockupTicketId, estatusDestino: nuevoEstatus, notasDisenador: nota, archivos: [] });
+        let res = await llamarAPI('procesarTicketDiseno', { id: aprobMockupTicketId, estatusDestino: nuevoEstatus, notasDisenador: nota, archivos: [], notificarDisenoAprobacion: aprobado });
         botones.forEach(b => b.disabled = false);
         if (res.exito) { cerrarModalGeneral('modalAprobacionMockup'); mostrarAviso("Listo", res.mensaje); cargarDatosDashboard(); }
         else mostrarAviso("Atención", res.mensaje, true);
