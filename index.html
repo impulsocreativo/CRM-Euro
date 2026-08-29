@@ -2019,7 +2019,7 @@ var qrcode = function() {
     // 10 minutos como respaldo. IMPORTANTE: sube esta constante cada vez que
     // subas cambios importantes, si no, esto no detecta nada nuevo.
     // =========================================================================
-    const APP_VERSION = "2026-08-28-01";
+    const APP_VERSION = "2026-08-28-02";
 
     async function revisarActualizacionDisponible() {
       try {
@@ -2094,7 +2094,6 @@ var qrcode = function() {
       actualizarTextoBotonModoOscuro();
     }
     aplicarModoOscuroGuardado();
-    intentarRestaurarSesion();
 
     const LS_FCM_TOKEN = "crmEuroFcmToken";
 
@@ -3676,6 +3675,10 @@ var qrcode = function() {
 
       window.addEventListener('resize', aplicarLadoGuardado);
     })();
+
+    // Se llama hasta el final del script, ya que todo lo que usa (sesionActual,
+    // LS_SESION_GUARDADA, entrarAlApp, etc.) ya quedó definido para este punto.
+    intentarRestaurarSesion();
   </script>
 </body>
 </html>
