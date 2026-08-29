@@ -120,8 +120,11 @@
     .ticket-card-body { padding: 0 25px 25px 25px; display: none; border-top: 1px solid #eee; background-color: #fcfcfc; }
     .ticket-visual-card.expanded .ticket-card-body { display: block; }
     
-    .gallery-images { display: flex; gap: 15px; overflow-x: auto; padding: 10px 0; margin-bottom: 20px; }
+    .gallery-images { display: flex; gap: 10px; overflow-x: auto; padding: 10px 2px; margin-bottom: 20px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
     .gallery-images iframe { width: 140px; height: 140px; border: 1px solid #ccc; border-radius: 6px; background: #fff; flex-shrink: 0; }
+    .miniatura-galeria { scroll-snap-align: start; width: 130px; height: 130px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd; background: #f0f0f0; flex-shrink: 0; cursor: pointer; }
+    .lightbox-flecha { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.15); color: #fff; border: none; width: 46px; height: 46px; border-radius: 50%; font-size: 1.8em; line-height: 1; cursor: pointer; z-index: 4; }
+    .lightbox-flecha:hover { background: rgba(255,255,255,0.3); }
     
     .ticket-meta-info { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.95em; border: 1px solid #eee; }
     .timeline { position: relative; margin: 10px 0 20px 0; padding-left: 22px; }
@@ -1624,6 +1627,10 @@ var qrcode = function() {
           <label for="loginPin">PIN</label>
           <input type="text" id="loginPin" name="codigoAcceso" required autocomplete="off" inputmode="numeric" pattern="[0-9]*" style="-webkit-text-security: disc; text-security: disc;">
         </div>
+        <div class="form-group" style="display:flex; align-items:center; gap:8px; margin-bottom:20px;">
+          <input type="checkbox" id="loginRecordar" style="width:auto; margin:0;">
+          <label for="loginRecordar" style="margin:0; font-weight:normal; cursor:pointer;">Mantener sesión iniciada en este dispositivo</label>
+        </div>
         <button type="submit" id="btnEntrar" class="btn-submit">Entrar al Taller</button>
       </form>
     </div>
@@ -1787,6 +1794,7 @@ var qrcode = function() {
         <div class="form-row">
           <div class="form-group" style="flex: 1;"><label>Cantidad total</label><input type="number" id="cantidad" required min="1"></div>
           <div class="form-group" style="flex: 1;"><label>Fecha de Entrega</label><input type="date" id="fechaEntrega" required></div>
+          <div class="form-group" style="flex: 1;"><label>Hora de Entrega</label><input type="time" id="horaEntrega"></div>
         </div>
         <div class="form-group"><label>Folio de Venta (POS)</label><input type="text" id="folioVenta" placeholder="Ej. A222180"></div>
         <div class="form-group">
@@ -1924,6 +1932,18 @@ var qrcode = function() {
     </div>
   </div>
 
+  <!-- LIGHTBOX propio para ver fotos en pantalla completa (reemplaza el ícono de "pop out"
+       de la vista previa de Drive, que en móvil se pierde muy fácil) -->
+  <div class="modal-overlay" id="modalLightbox" style="z-index:4000; background:rgba(0,0,0,0.92); flex-direction:column;">
+    <button class="btn-close" style="color:#fff; z-index:5;" onclick="cerrarModalGeneral('modalLightbox')">&times;</button>
+    <div id="lightboxContador" style="color:#fff; text-align:center; padding:8px; font-size:0.85em; flex-shrink:0;"></div>
+    <div style="flex:1; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden;" id="lightboxArea">
+      <button onclick="moverLightbox(-1)" class="lightbox-flecha" style="left:10px;">‹</button>
+      <img id="imgLightbox" src="" style="max-width:92vw; max-height:80vh; object-fit:contain;">
+      <button onclick="moverLightbox(1)" class="lightbox-flecha" style="right:10px;">›</button>
+    </div>
+  </div>
+
   <!-- MODAL GESTIÓN DE USUARIOS (Solo Administrador) -->
   <div class="modal-overlay" id="modalUsuarios">
     <div class="modal-content">
@@ -1999,7 +2019,7 @@ var qrcode = function() {
     // 10 minutos como respaldo. IMPORTANTE: sube esta constante cada vez que
     // subas cambios importantes, si no, esto no detecta nada nuevo.
     // =========================================================================
-    const APP_VERSION = "2026-08-25-05";
+    const APP_VERSION = "2026-08-28-01";
 
     async function revisarActualizacionDisponible() {
       try {
@@ -2074,6 +2094,7 @@ var qrcode = function() {
       actualizarTextoBotonModoOscuro();
     }
     aplicarModoOscuroGuardado();
+    intentarRestaurarSesion();
 
     const LS_FCM_TOKEN = "crmEuroFcmToken";
 
@@ -2251,6 +2272,59 @@ var qrcode = function() {
     // =========================================================================
     // LOGIN
     // =========================================================================
+    function entrarAlApp() {
+      document.getElementById('perfilNombre').innerText = sesionActual.nombre;
+      document.getElementById('perfilRol').innerText = sesionActual.rol;
+      document.getElementById('menuTicketsVisuales').style.display = 'flex';
+      document.getElementById('menuTareas').style.display = 'flex';
+      document.getElementById('btnMenuGestionUsuarios').style.display = 'none';
+      document.getElementById('menuMetricas').style.display = 'none';
+
+      if (sesionActual.rol === "Jefe de Taller") {
+        document.getElementById('btnMenuNuevoTicket').style.display = 'none';
+        document.getElementById('fabNuevoPedido').style.display = 'none';
+        document.getElementById('saludoDashboard').innerText = "Supervisión de Taller - " + sesionActual.nombre;
+      } else if (sesionActual.rol === "Diseñador") {
+        document.getElementById('btnMenuNuevoTicket').style.display = 'none';
+        document.getElementById('fabNuevoPedido').style.display = 'none';
+        document.getElementById('saludoDashboard').innerText = "Bandeja Principal - Diseño";
+      } else if (sesionActual.rol === "Bordados") {
+        document.getElementById('btnMenuNuevoTicket').style.display = 'none';
+        document.getElementById('fabNuevoPedido').style.display = 'none';
+        document.getElementById('saludoDashboard').innerText = "Bandeja de Maquila - Bordados";
+      } else if (sesionActual.rol === "Administrador") {
+        document.getElementById('btnMenuNuevoTicket').style.display = 'flex';
+        document.getElementById('fabNuevoPedido').style.display = 'flex';
+        document.getElementById('btnMenuGestionUsuarios').style.display = 'flex';
+        document.getElementById('menuMetricas').style.display = 'flex';
+        document.getElementById('saludoDashboard').innerText = "Hola " + sesionActual.nombre + " (Administrador). Control general.";
+      } else {
+        document.getElementById('btnMenuNuevoTicket').style.display = 'flex';
+        document.getElementById('fabNuevoPedido').style.display = 'flex';
+        document.getElementById('saludoDashboard').innerText = "Hola " + sesionActual.nombre + " (" + sesionActual.rol + "). Control general.";
+      }
+
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('appScreen').style.display = 'flex';
+      actualizarBotonNotificaciones();
+      cargarDatosDashboard();
+    }
+
+    const LS_SESION_GUARDADA = "crmEuroSesionGuardada";
+
+    // Se llama al cargar la página. Si hay una sesión guardada (casilla "Mantener
+    // sesión iniciada" activada), entra directo sin pedir usuario/PIN. Si el token
+    // ya expiró del lado del servidor, la primera llamada a la API lo detecta sola
+    // (llamarAPI ya maneja "sesionInvalida") y regresa al login automáticamente.
+    function intentarRestaurarSesion() {
+      try {
+        let guardada = localStorage.getItem(LS_SESION_GUARDADA);
+        if (!guardada) return;
+        sesionActual = JSON.parse(guardada);
+        entrarAlApp();
+      } catch (e) { localStorage.removeItem(LS_SESION_GUARDADA); }
+    }
+
     async function procesarLogin(e) {
       e.preventDefault();
       let btn = document.getElementById('btnEntrar');
@@ -2259,48 +2333,17 @@ var qrcode = function() {
 
       let usuarioVal = document.getElementById('loginUser').value;
       let pinVal = document.getElementById('loginPin').value;
+      let recordarVal = document.getElementById('loginRecordar').checked;
 
       try {
-        let res = await llamarAPI('validarAcceso', { usuario: usuarioVal, pin: pinVal });
+        let res = await llamarAPI('validarAcceso', { usuario: usuarioVal, pin: pinVal, recordar: recordarVal });
         btn.innerText = "Entrar al Taller"; btn.disabled = false;
 
         if (res && res.exito) {
           sesionActual = res.datos;
-          document.getElementById('perfilNombre').innerText = sesionActual.nombre;
-          document.getElementById('perfilRol').innerText = sesionActual.rol;
-          document.getElementById('menuTicketsVisuales').style.display = 'flex';
-          document.getElementById('menuTareas').style.display = 'flex';
-          document.getElementById('btnMenuGestionUsuarios').style.display = 'none';
-          document.getElementById('menuMetricas').style.display = 'none';
-
-          if (sesionActual.rol === "Jefe de Taller") {
-            document.getElementById('btnMenuNuevoTicket').style.display = 'none';
-            document.getElementById('fabNuevoPedido').style.display = 'none';
-            document.getElementById('saludoDashboard').innerText = "Supervisión de Taller - " + sesionActual.nombre;
-          } else if (sesionActual.rol === "Diseñador") {
-            document.getElementById('btnMenuNuevoTicket').style.display = 'none';
-            document.getElementById('fabNuevoPedido').style.display = 'none';
-            document.getElementById('saludoDashboard').innerText = "Bandeja Principal - Diseño";
-          } else if (sesionActual.rol === "Bordados") {
-            document.getElementById('btnMenuNuevoTicket').style.display = 'none';
-            document.getElementById('fabNuevoPedido').style.display = 'none';
-            document.getElementById('saludoDashboard').innerText = "Bandeja de Maquila - Bordados";
-          } else if (sesionActual.rol === "Administrador") {
-            document.getElementById('btnMenuNuevoTicket').style.display = 'flex';
-            document.getElementById('fabNuevoPedido').style.display = 'flex';
-            document.getElementById('btnMenuGestionUsuarios').style.display = 'flex';
-            document.getElementById('menuMetricas').style.display = 'flex';
-            document.getElementById('saludoDashboard').innerText = "Hola " + sesionActual.nombre + " (Administrador). Control general.";
-          } else {
-            document.getElementById('btnMenuNuevoTicket').style.display = 'flex';
-            document.getElementById('fabNuevoPedido').style.display = 'flex';
-            document.getElementById('saludoDashboard').innerText = "Hola " + sesionActual.nombre + " (" + sesionActual.rol + "). Control general.";
-          }
-
-          document.getElementById('loginScreen').style.display = 'none';
-          document.getElementById('appScreen').style.display = 'flex';
-          actualizarBotonNotificaciones();
-          cargarDatosDashboard();
+          if (recordarVal) localStorage.setItem(LS_SESION_GUARDADA, JSON.stringify(sesionActual));
+          else localStorage.removeItem(LS_SESION_GUARDADA);
+          entrarAlApp();
         } else {
           msg.innerText = res ? res.mensaje : "Error desconocido al validar.";
           msg.style.display = 'block';
@@ -2313,6 +2356,7 @@ var qrcode = function() {
 
     function cerrarSesion() {
       sesionActual = null;
+      localStorage.removeItem(LS_SESION_GUARDADA);
       document.getElementById('appScreen').style.display = 'none';
       document.getElementById('loginScreen').style.display = 'flex';
       document.getElementById('formLogin').reset();
@@ -2774,6 +2818,64 @@ var qrcode = function() {
       return html;
     }
 
+    // Convierte una URL de Drive tipo .../file/d/ID/view en una miniatura o vista
+    // grande directa (sin pasar por la UI de Drive, que es donde se perdía el
+    // ícono de "pop out"). Si no es de Drive, se usa la URL tal cual (sin tocar).
+    function idDriveDesdeUrl_(url) {
+      let m = url.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
+      return m ? m[1] : null;
+    }
+    function urlMiniaturaDrive_(url) {
+      let id = idDriveDesdeUrl_(url);
+      return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w400` : url;
+    }
+    function urlCompletaDrive_(url) {
+      let id = idDriveDesdeUrl_(url);
+      return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w1600` : url;
+    }
+
+    // =========================================================================
+    // LIGHTBOX — visor de fotos propio, a pantalla completa, con flechas y swipe.
+    // =========================================================================
+    let lightboxImagenes = [];
+    let lightboxIndice = 0;
+
+    function abrirLightbox(urls, indiceInicial) {
+      if (!urls || urls.length === 0) return;
+      lightboxImagenes = urls;
+      lightboxIndice = indiceInicial || 0;
+      actualizarLightbox();
+      document.getElementById('modalLightbox').style.display = 'flex';
+    }
+    function actualizarLightbox() {
+      document.getElementById('imgLightbox').src = lightboxImagenes[lightboxIndice];
+      document.getElementById('lightboxContador').innerText = (lightboxImagenes.length > 1) ? (lightboxIndice + 1) + ' / ' + lightboxImagenes.length : '';
+    }
+    function moverLightbox(delta) {
+      if (lightboxImagenes.length === 0) return;
+      lightboxIndice = (lightboxIndice + delta + lightboxImagenes.length) % lightboxImagenes.length;
+      actualizarLightbox();
+    }
+    (function habilitarSwipeLightbox() {
+      let area = document.getElementById('lightboxArea');
+      if (!area) return;
+      let startX = 0;
+      area.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+      area.addEventListener('touchend', e => {
+        let deltaX = e.changedTouches[0].clientX - startX;
+        if (Math.abs(deltaX) > 40) moverLightbox(deltaX > 0 ? -1 : 1);
+      }, { passive: true });
+    })();
+
+    // Arma una galería de miniaturas (<img>) que abren el lightbox — reemplaza los
+    // <iframe> de vista previa de Drive, cuyo ícono de pantalla completa se perdía
+    // fácil en móvil. Se usa igual para referencias del vendedor y para mockups.
+    function construirGaleria_(urls) {
+      if (!urls || urls.length === 0) return "";
+      let urlsCompletas = urls.map(u => urlCompletaDrive_(u));
+      return urls.map((u, idx) => `<img class="miniatura-galeria" src="${urlMiniaturaDrive_(u)}" loading="lazy" onclick='abrirLightbox(${JSON.stringify(urlsCompletas)}, ${idx})'>`).join('');
+    }
+
     function construirDetalleTicket(t) {
       let esJefeTaller = sesionActual.rol === "Jefe de Taller";
       let mostrarFotosVendedor = !esJefeTaller || t.sinDiseno === true;
@@ -2781,15 +2883,9 @@ var qrcode = function() {
 
       let imagenesHtml = "";
       if (mostrarFotosVendedor) {
+        let urlsImg = t.urlImagen ? t.urlImagen.split("\n").filter(l => l.trim() !== "") : [];
         imagenesHtml = "<strong>Referencias Vendedor:</strong><div class='gallery-images'>";
-        if (t.urlImagen) {
-          t.urlImagen.split("\n").forEach(l => {
-            if(l.trim() !== "") {
-              let urlImg = l.includes("drive.google.com") ? l.replace("/view?usp=drivesdk", "").replace("/edit?usp=sharing", "") + "/preview" : l;
-              imagenesHtml += `<iframe src="${urlImg}" frameborder="0"></iframe>`;
-            }
-          });
-        } else { imagenesHtml += "<p>Sin imágenes.</p>"; }
+        imagenesHtml += urlsImg.length > 0 ? construirGaleria_(urlsImg) : "<p>Sin imágenes.</p>";
         imagenesHtml += "</div>";
       }
 
@@ -2797,17 +2893,15 @@ var qrcode = function() {
       if (mostrarMockups) {
         mockupsHtml = "<strong>Mockups / Archivos de Diseño:</strong><div class='gallery-images'>";
         let pieDeFotoMockup = [];
+        let urlsMockup = [];
         if (t.urlMockup) {
           t.urlMockup.split("\n").forEach(l => {
             if (l.trim() === "") return;
-            if (l.includes("---")) {
-              pieDeFotoMockup.push(l.replace(/-{2,}/g, "").trim());
-            } else {
-              let urlM = l.includes("drive.google.com") ? l.replace("/view?usp=drivesdk", "").replace("/edit?usp=sharing", "") + "/preview" : l;
-              mockupsHtml += `<iframe src="${urlM}" frameborder="0"></iframe>`;
-            }
+            if (l.includes("---")) pieDeFotoMockup.push(l.replace(/-{2,}/g, "").trim());
+            else urlsMockup.push(l);
           });
-        } else { mockupsHtml += "<p style='color:#888;'>Aún sin mockup generado.</p>"; }
+        }
+        mockupsHtml += urlsMockup.length > 0 ? construirGaleria_(urlsMockup) : "<p style='color:#888;'>Aún sin mockup generado.</p>";
         mockupsHtml += "</div>";
         if (pieDeFotoMockup.length > 0) {
           mockupsHtml += `<p style="font-size:0.8em; color:#999; font-style:italic; margin:2px 0 15px 0;">${pieDeFotoMockup.join(" · ")}</p>`;
@@ -2820,6 +2914,7 @@ var qrcode = function() {
         <div class="ticket-meta-info">
           <p><strong>Producto:</strong> ${t.productoTecnica} (${t.cantidad} pz)</p>
           <p><strong>Destino:</strong> ${t.destino || 'Taller'}</p>
+          ${t.horaEntrega ? `<p><strong>Hora de Entrega:</strong> ${t.horaEntrega}</p>` : ''}
         </div>
         <strong>Historial:</strong>
         ${construirLineaDeTiempo(t)}`;
@@ -3168,6 +3263,7 @@ var qrcode = function() {
       toggleCampoSinDiseno();
       document.getElementById('folioVenta').value = ""; // el folio de venta siempre es nuevo
       document.getElementById('fechaEntrega').value = ""; // la fecha de entrega también, la captura la persona
+      document.getElementById('horaEntrega').value = "";
       document.getElementById('notasVendedor').value = "";
       document.getElementById('modalTicket').style.display = 'flex';
     }
@@ -3199,6 +3295,7 @@ var qrcode = function() {
         let f = new Date(t.fechaEntrega); f.setMinutes(f.getMinutes() + f.getTimezoneOffset());
         document.getElementById('fechaEntrega').value = f.toISOString().split('T')[0];
       }
+      document.getElementById('horaEntrega').value = t.horaEntrega || "";
       document.getElementById('productoTecnica').value = t.productoTecnica;
       document.getElementById('notasVendedor').value = ""; document.getElementById('archivoImagen').required = false;
       document.getElementById('modalTicket').style.display = 'flex';
@@ -3269,16 +3366,8 @@ var qrcode = function() {
       document.getElementById('aprobMockupComentario').value = "";
 
       let galeria = document.getElementById('aprobMockupGaleria');
-      galeria.innerHTML = "";
-      if (t.urlMockup) {
-        t.urlMockup.split("\n").forEach(l => {
-          if (l.trim() !== "" && !l.includes("---")) {
-            let urlM = l.includes("drive.google.com") ? l.replace("/view?usp=drivesdk", "").replace("/edit?usp=sharing", "") + "/preview" : l;
-            galeria.innerHTML += `<iframe src="${urlM}" frameborder="0"></iframe>`;
-          }
-        });
-      }
-      if (galeria.innerHTML === "") galeria.innerHTML = "<p style='color:#888;'>No hay mockup adjunto.</p>";
+      let urlsMockup = t.urlMockup ? t.urlMockup.split("\n").filter(l => l.trim() !== "" && !l.includes("---")) : [];
+      galeria.innerHTML = urlsMockup.length > 0 ? construirGaleria_(urlsMockup) : "<p style='color:#888;'>No hay mockup adjunto.</p>";
 
       document.getElementById('modalAprobacionMockup').style.display = 'flex';
     }
@@ -3473,7 +3562,7 @@ var qrcode = function() {
         let idTicket = document.getElementById('ticketId').value;
         let datos = {
           id: idTicket, cliente: document.getElementById('cliente').value, cantidad: document.getElementById('cantidad').value,
-          fechaEntrega: document.getElementById('fechaEntrega').value, folioVenta: document.getElementById('folioVenta').value,
+          fechaEntrega: document.getElementById('fechaEntrega').value, horaEntrega: document.getElementById('horaEntrega').value, folioVenta: document.getElementById('folioVenta').value,
           destino: document.getElementById('destinoPedido').value, productoTecnica: document.getElementById('productoTecnica').value,
           notasVendedor: document.getElementById('notasVendedor').value, archivos: archivos,
           sinDiseno: (document.getElementById('requiereDiseno').value === 'no'),
