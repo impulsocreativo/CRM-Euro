@@ -80,6 +80,19 @@
     .metrica-barra { background: var(--euro-red); height: 100%; border-radius: 6px; }
     .metrica-valor { text-align: right; font-weight: bold; font-size: 0.9em; }
     @media (max-width: 768px) { .metrica-fila { grid-template-columns: 1fr; } .metrica-valor { text-align: left; } }
+
+    .lista-planificador { display: flex; flex-direction: column; gap: 8px; min-height: 70px; padding: 8px; background: #f8f9fa; border-radius: 8px; border: 1px dashed #ddd; }
+    .planificador-item { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; display: flex; align-items: center; gap: 8px; }
+    .planificador-item.arrastrando { opacity: 0.35; }
+    .planificador-item .drag-handle { cursor: grab; color: #bbb; font-size: 1.1em; user-select: none; }
+    .planificador-info { flex: 1; min-width: 0; }
+    .planificador-info .p-top { font-weight: bold; font-size: 0.88em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .planificador-info .p-producto { font-size: 0.78em; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .planificador-orden { background: var(--euro-black); color: #fff; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.72em; font-weight: bold; flex-shrink: 0; }
+    .planificador-acciones { display: flex; gap: 4px; flex-shrink: 0; }
+    .planificador-acciones button { border: none; background: #eee; border-radius: 6px; width: 26px; height: 26px; cursor: pointer; font-size: 0.8em; }
+    .planificador-acciones button:hover { background: #ddd; }
+    @media (max-width: 768px) { #gridPlanificador { grid-template-columns: 1fr !important; } }
     .user-profile h2 { margin: 0; font-size: 1.5em; font-weight: 600; color: #000; }
     .user-profile .divider { border: none; border-bottom: 3px solid var(--euro-red); margin: 8px 0; width: 100%; }
     .user-profile p { margin: 0; font-weight: 600; font-size: 1em; color: #000; }
@@ -1669,6 +1682,7 @@ var qrcode = function() {
         <button class="nav-btn" id="btnMenuNuevoTicket" style="display:none;" onclick="abrirModalTicket()">➕ Nuevo Pedido</button>
         <button class="nav-btn" id="btnMenuGestionUsuarios" style="display:none;" onclick="abrirModalUsuarios()">👤 Gestionar Usuarios</button>
         <button class="nav-btn" id="menuMetricas" style="display:none;" onclick="cambiarVista('metricas')">📊 Métricas</button>
+        <button class="nav-btn" id="menuPlanificador" style="display:none;" onclick="cambiarVista('planificador')">📅 Planificador</button>
         <button class="nav-btn" id="btnActivarNotificaciones" onclick="activarNotificaciones()">🔔 Activar Notificaciones</button>
         <button class="nav-btn" id="btnModoOscuro" onclick="toggleModoOscuro()">🌙 Modo Oscuro</button>
       </nav>
@@ -1775,6 +1789,30 @@ var qrcode = function() {
             <h1>📊 Métricas de Tiempo por Etapa</h1>
             <p style="color:#666; margin-top:-10px;">Promedio de cuánto tarda un ticket en cada estatus, calculado a partir del historial automático de todos los tickets.</p>
             <div id="contenedorMetricas"></div>
+          </div>
+        </div>
+
+        <div id="vistaPlanificador" class="view-section">
+          <div class="card">
+            <h1>📅 Planificador Diario</h1>
+            <p style="color:#666; margin-top:-10px;">Asigna en qué día se EJECUTA cada ticket de Taller (Diseño/Producción) y en qué orden — es independiente de la fecha de entrega al cliente.</p>
+            <div class="filter-header-bar">
+              <div class="form-group" style="margin:0;">
+                <label style="font-size:0.85em;">Día a planear</label>
+                <input type="date" id="inputFechaPlanificador" onchange="pintarPlanificador()">
+              </div>
+              <button class="btn-actualizar" onclick="hoyEnPlanificador()">Hoy</button>
+            </div>
+            <div id="gridPlanificador" style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:15px;">
+              <div>
+                <h3 style="margin-bottom:10px; font-size:1em;">📥 Sin Asignar <span id="contadorSinAsignar" style="color:#888; font-weight:normal; font-size:0.85em;"></span></h3>
+                <div id="listaSinAsignar" class="lista-planificador"></div>
+              </div>
+              <div>
+                <h3 style="margin-bottom:10px; font-size:1em;" id="tituloDiaPlanificador">Plan del día</h3>
+                <div id="listaDiaPlanificador" class="lista-planificador"></div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -2019,7 +2057,7 @@ var qrcode = function() {
     // 10 minutos como respaldo. IMPORTANTE: sube esta constante cada vez que
     // subas cambios importantes, si no, esto no detecta nada nuevo.
     // =========================================================================
-    const APP_VERSION = "2026-08-28-02";
+    const APP_VERSION = "2026-09-01-01";
 
     async function revisarActualizacionDisponible() {
       try {
@@ -2255,6 +2293,12 @@ var qrcode = function() {
         document.getElementById('vistaMetricas').classList.add('active-view');
         document.getElementById('menuMetricas').classList.add('active');
         pintarMetricas();
+      } else if(vista === 'planificador') {
+        document.getElementById('vistaPlanificador').classList.add('active-view');
+        document.getElementById('menuPlanificador').classList.add('active');
+        let inputFecha = document.getElementById('inputFechaPlanificador');
+        if (!inputFecha.value) inputFecha.value = new Date().toISOString().split('T')[0];
+        pintarPlanificador();
       }
       document.getElementById('sidebar').classList.remove('open');
       document.getElementById('sidebarOverlay').classList.remove('active');
@@ -2278,6 +2322,7 @@ var qrcode = function() {
       document.getElementById('menuTareas').style.display = 'flex';
       document.getElementById('btnMenuGestionUsuarios').style.display = 'none';
       document.getElementById('menuMetricas').style.display = 'none';
+      document.getElementById('menuPlanificador').style.display = 'none';
 
       if (sesionActual.rol === "Jefe de Taller") {
         document.getElementById('btnMenuNuevoTicket').style.display = 'none';
@@ -2296,6 +2341,7 @@ var qrcode = function() {
         document.getElementById('fabNuevoPedido').style.display = 'flex';
         document.getElementById('btnMenuGestionUsuarios').style.display = 'flex';
         document.getElementById('menuMetricas').style.display = 'flex';
+        document.getElementById('menuPlanificador').style.display = 'flex';
         document.getElementById('saludoDashboard').innerText = "Hola " + sesionActual.nombre + " (Administrador). Control general.";
       } else {
         document.getElementById('btnMenuNuevoTicket').style.display = 'flex';
@@ -2926,39 +2972,68 @@ var qrcode = function() {
       return f.toISOString().split('T')[0];
     }
 
+    // Fecha de TRABAJO (asignada por el Administrador en el Planificador) — distinta de
+    // la fecha de ENTREGA al cliente. Sin asignar todavía = null (no aparece en Tareas).
+    function fechaTrabajoISO_(t) {
+      if (!t.fechaTrabajo) return null;
+      let f = new Date(t.fechaTrabajo);
+      f.setMinutes(f.getMinutes() + f.getTimezoneOffset());
+      return f.toISOString().split('T')[0];
+    }
+
+    // Diseñador y Jefe de Taller ven "Tareas" según cuándo deben EJECUTAR el trabajo
+    // (fecha de trabajo, asignada por el Admin) — no según cuándo se le prometió al
+    // cliente. Los demás roles (Vendedor/Administrador/Bordados) siguen viendo por
+    // fecha de entrega, que es lo que a ellos sí les importa directamente.
+    function usaFechaDeTrabajo_() {
+      return sesionActual.rol === 'Diseñador' || sesionActual.rol === 'Jefe de Taller';
+    }
+    function fechaRelevanteISO_(t) {
+      return usaFechaDeTrabajo_() ? fechaTrabajoISO_(t) : fechaEntregaISO_(t);
+    }
+
     function pintarTareas() {
       let fechaSel = document.getElementById('inputFechaTareas').value;
       let contenedor = document.getElementById('contenedorTareas');
       if (!fechaSel) { contenedor.innerHTML = ""; return; }
 
-      let ticketsDelDia = ticketsVisibles.filter(t => fechaEntregaISO_(t) === fechaSel);
+      let ticketsDelDia = ticketsVisibles.filter(t => fechaRelevanteISO_(t) === fechaSel);
 
       if (ticketsDelDia.length === 0) {
-        contenedor.innerHTML = '<p style="text-align:center; color:#777; padding:30px;">No hay pedidos con fecha de entrega ese día.</p>';
+        let mensajeVacio = usaFechaDeTrabajo_()
+          ? "No tienes tickets asignados para trabajar ese día. Pregúntale al Administrador si ya te asignó algo en el Planificador."
+          : "No hay pedidos con fecha de entrega ese día.";
+        contenedor.innerHTML = '<p style="text-align:center; color:#777; padding:30px;">' + mensajeVacio + '</p>';
         return;
       }
 
-      // Bomberazo primero, luego urgente, el resto al final.
-      const ORDEN_PRIORIDAD = { bomberazo: 0, urgente: 1, atiempo: 2 };
-      ticketsDelDia.sort((a, b) => {
-        let pa = calcularPrioridad(a), pb = calcularPrioridad(b);
-        return (pa ? ORDEN_PRIORIDAD[pa.nivel] : 3) - (pb ? ORDEN_PRIORIDAD[pb.nivel] : 3);
-      });
+      // Si es fecha de trabajo, respeta el orden que definió el Admin en el Planificador
+      // (ordenTrabajo). Si es fecha de entrega, ordena por prioridad como siempre.
+      if (usaFechaDeTrabajo_()) {
+        ticketsDelDia.sort((a, b) => (a.ordenTrabajo ?? 999) - (b.ordenTrabajo ?? 999));
+      } else {
+        const ORDEN_PRIORIDAD = { bomberazo: 0, urgente: 1, atiempo: 2 };
+        ticketsDelDia.sort((a, b) => {
+          let pa = calcularPrioridad(a), pb = calcularPrioridad(b);
+          return (pa ? ORDEN_PRIORIDAD[pa.nivel] : 3) - (pb ? ORDEN_PRIORIDAD[pb.nivel] : 3);
+        });
+      }
 
       let html = "";
-      ticketsDelDia.forEach(t => {
+      ticketsDelDia.forEach((t, idx) => {
         let prioridad = calcularPrioridad(t);
         let claseCard = prioridad ? 'prioridad-' + prioridad.nivel : '';
-        let iconoTicket = prioridad ? prioridad.icono : '🎫';
+        let iconoTicket = usaFechaDeTrabajo_() ? '📌' : (prioridad ? prioridad.icono : '🎫');
         let claseBadge = claseBadgePorEstatus(t.estatus);
         let textoFolioPOS = t.folioVenta ? ` | POS: ${t.folioVenta}` : "";
         let botonAtenderHTML = generarBotonesAccion(t, false);
         if (botonAtenderHTML === "") botonAtenderHTML = `<p style="color:#888; font-size:0.9em;">Sin acciones.</p>`;
+        let numeroOrden = usaFechaDeTrabajo_() ? `<span style="color:#888; font-weight:normal;">#${idx + 1} · </span>` : "";
 
         html += `
           <div class="ticket-visual-card ${claseCard}">
             <div class="ticket-card-header" onclick="this.parentElement.classList.toggle('expanded')">
-              <h3><span>${iconoTicket} ${t.id} - ${t.cliente} ${textoFolioPOS}</span></h3>
+              <h3><span>${numeroOrden}${iconoTicket} ${t.id} - ${t.cliente} ${textoFolioPOS}</span></h3>
               <span class="badge ${claseBadge}">${t.estatus}</span>
             </div>
             <div class="ticket-card-body" style="padding: 20px;">
@@ -3024,7 +3099,7 @@ var qrcode = function() {
       const RANGO_PRIORIDAD = { atiempo: 0, urgente: 1, bomberazo: 2 };
       let conteoPorDia = {};
       ticketsVisibles.forEach(t => {
-        let fISO = fechaEntregaISO_(t);
+        let fISO = fechaRelevanteISO_(t);
         if (!fISO) return;
         let fDate = new Date(fISO + 'T00:00:00');
         if (fDate.getFullYear() !== year || fDate.getMonth() !== month) return;
@@ -3058,13 +3133,153 @@ var qrcode = function() {
       document.getElementById('gridCalendario').innerHTML = html;
     }
 
+    // =========================================================================
+    // PLANIFICADOR DIARIO (solo Administrador)
+    // "Fecha de trabajo" es independiente de "fecha de entrega" — decide cuándo
+    // Diseño/Taller EJECUTAN el ticket, sin importar cuándo se le prometió al cliente.
+    // =========================================================================
+    function hoyEnPlanificador() {
+      document.getElementById('inputFechaPlanificador').value = new Date().toISOString().split('T')[0];
+      pintarPlanificador();
+    }
+
+    function construirItemPlanificador_(t, contexto, numero) {
+      let numHtml = contexto === 'dia' ? `<div class="planificador-orden">${numero}</div>` : '';
+      let accionesHtml = contexto === 'pool'
+        ? `<button onclick="agregarAlDia_('${t.id}')" title="Agregar al día">➕</button>`
+        : `<button onclick="moverOrdenPlanificador_('${t.id}', -1)" title="Subir">▲</button><button onclick="moverOrdenPlanificador_('${t.id}', 1)" title="Bajar">▼</button><button onclick="quitarDelDia_('${t.id}')" title="Quitar del día">✖</button>`;
+
+      return `
+        <div class="planificador-item" draggable="true" data-id="${t.id}" data-contexto="${contexto}">
+          ${numHtml}
+          <span class="drag-handle">⠿</span>
+          <div class="planificador-info">
+            <div class="p-top">${t.id} · ${t.cliente}</div>
+            <div class="p-producto">${t.productoTecnica}</div>
+          </div>
+          <div class="planificador-acciones">${accionesHtml}</div>
+        </div>`;
+    }
+
+    function pintarPlanificador() {
+      let fechaSel = document.getElementById('inputFechaPlanificador').value;
+      document.getElementById('tituloDiaPlanificador').innerText = fechaSel ? ('Plan del ' + fechaSel) : 'Plan del día';
+
+      // "Sin Asignar": tickets de Taller, en un estatus donde Diseño/Producción
+      // todavía tienen algo que hacer, y que ningún día les ha sido asignado aún.
+      let sinAsignar = ticketsGlobal.filter(t =>
+        t.destino === 'Taller' && !t.fechaTrabajo &&
+        (t.estatus === 'Nuevo / Pendiente Diseño' || t.estatus === 'Listo para Producción')
+      );
+
+      let delDia = fechaSel ? ticketsGlobal.filter(t => fechaTrabajoISO_(t) === fechaSel) : [];
+      delDia.sort((a, b) => (a.ordenTrabajo ?? 999) - (b.ordenTrabajo ?? 999));
+
+      document.getElementById('contadorSinAsignar').innerText = '(' + sinAsignar.length + ')';
+      document.getElementById('listaSinAsignar').innerHTML = sinAsignar.length > 0
+        ? sinAsignar.map(t => construirItemPlanificador_(t, 'pool')).join('')
+        : '<p style="text-align:center; color:#999; font-size:0.85em; padding:15px; margin:0;">Todo está asignado 🎉</p>';
+
+      document.getElementById('listaDiaPlanificador').innerHTML = delDia.length > 0
+        ? delDia.map((t, idx) => construirItemPlanificador_(t, 'dia', idx + 1)).join('')
+        : '<p style="text-align:center; color:#999; font-size:0.85em; padding:15px; margin:0;">Arrastra tickets aquí (en escritorio), o usa "➕" desde Sin Asignar.</p>';
+
+      habilitarDragPlanificador_();
+    }
+
+    async function guardarPlanDelDia_(fecha, ids) {
+      try {
+        let res = await llamarAPI('guardarPlanDia', { fecha: fecha, ids: ids });
+        if (res.exito) { await cargarDatosDashboard(); pintarPlanificador(); }
+        else { mostrarAviso("Atención", res.mensaje, true); pintarPlanificador(); }
+      } catch (err) { mostrarAviso("Error", err.message, true); pintarPlanificador(); }
+    }
+
+    async function agregarAlDia_(id) {
+      let fechaSel = document.getElementById('inputFechaPlanificador').value;
+      if (!fechaSel) { mostrarAviso("Atención", "Selecciona primero el día a planear.", true); return; }
+      let delDia = ticketsGlobal.filter(t => fechaTrabajoISO_(t) === fechaSel).sort((a, b) => (a.ordenTrabajo ?? 999) - (b.ordenTrabajo ?? 999));
+      let ids = delDia.map(t => t.id);
+      ids.push(id);
+      await guardarPlanDelDia_(fechaSel, ids);
+    }
+
+    async function quitarDelDia_(id) {
+      try {
+        let res = await llamarAPI('quitarDeAsignacion', { id: id });
+        if (res.exito) { await cargarDatosDashboard(); pintarPlanificador(); }
+        else mostrarAviso("Atención", res.mensaje, true);
+      } catch (err) { mostrarAviso("Error", err.message, true); }
+    }
+
+    async function moverOrdenPlanificador_(id, delta) {
+      let fechaSel = document.getElementById('inputFechaPlanificador').value;
+      let delDia = ticketsGlobal.filter(t => fechaTrabajoISO_(t) === fechaSel).sort((a, b) => (a.ordenTrabajo ?? 999) - (b.ordenTrabajo ?? 999));
+      let idx = delDia.findIndex(t => t.id === id);
+      let nuevoIdx = idx + delta;
+      if (idx === -1 || nuevoIdx < 0 || nuevoIdx >= delDia.length) return;
+      let ids = delDia.map(t => t.id);
+      let tmp = ids[idx]; ids[idx] = ids[nuevoIdx]; ids[nuevoIdx] = tmp;
+      await guardarPlanDelDia_(fechaSel, ids);
+    }
+
+    // Arrastrar y soltar es un EXTRA para escritorio (el drag nativo del navegador
+    // no funciona bien con el dedo en celular) — los botones ▲▼➕✖ ya cubren la
+    // misma función en cualquier dispositivo, así que esto nunca es indispensable.
+    let dragOrigenId_ = null;
+
+    function obtenerElementoDespuesDe_(contenedor, y) {
+      let elementos = [...contenedor.querySelectorAll('.planificador-item:not(.arrastrando)')];
+      return elementos.reduce((mejor, hijo) => {
+        let caja = hijo.getBoundingClientRect();
+        let offset = y - caja.top - caja.height / 2;
+        if (offset < 0 && offset > mejor.offset) return { offset: offset, elemento: hijo };
+        return mejor;
+      }, { offset: Number.NEGATIVE_INFINITY, elemento: null }).elemento;
+    }
+
+    function habilitarDragPlanificador_() {
+      document.querySelectorAll('.planificador-item').forEach(item => {
+        item.addEventListener('dragstart', () => {
+          dragOrigenId_ = item.dataset.id;
+          item.classList.add('arrastrando');
+        });
+        item.addEventListener('dragend', () => item.classList.remove('arrastrando'));
+      });
+
+      ['listaSinAsignar', 'listaDiaPlanificador'].forEach(contId => {
+        let cont = document.getElementById(contId);
+        cont.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          let arrastrado = document.querySelector('.planificador-item.arrastrando');
+          if (!arrastrado) return;
+          let despues = obtenerElementoDespuesDe_(cont, e.clientY);
+          if (despues == null) cont.appendChild(arrastrado);
+          else cont.insertBefore(arrastrado, despues);
+        });
+        cont.addEventListener('drop', async (e) => {
+          e.preventDefault();
+          if (!dragOrigenId_) return;
+          if (contId === 'listaDiaPlanificador') {
+            let fechaSel = document.getElementById('inputFechaPlanificador').value;
+            if (!fechaSel) { mostrarAviso("Atención", "Selecciona primero el día.", true); pintarPlanificador(); dragOrigenId_ = null; return; }
+            let idsNuevoOrden = Array.from(cont.querySelectorAll('.planificador-item')).map(el => el.dataset.id);
+            await guardarPlanDelDia_(fechaSel, idsNuevoOrden);
+          } else {
+            await quitarDelDia_(dragOrigenId_);
+          }
+          dragOrigenId_ = null;
+        });
+      });
+    }
+
     function imprimirEtiquetasDelDia() {
       let fechaSel = document.getElementById('inputFechaTareas').value;
       if (!fechaSel) { mostrarAviso("Atención", "Selecciona una fecha primero.", true); return; }
 
-      let ticketsDelDia = ticketsVisibles.filter(t => fechaEntregaISO_(t) === fechaSel);
+      let ticketsDelDia = ticketsVisibles.filter(t => fechaRelevanteISO_(t) === fechaSel);
       if (ticketsDelDia.length === 0) {
-        mostrarAviso("Atención", "No hay tickets con fecha de entrega ese día para imprimir.", true);
+        mostrarAviso("Atención", "No hay tickets para ese día para imprimir.", true);
         return;
       }
 
