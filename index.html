@@ -2058,7 +2058,7 @@ var qrcode = function() {
     // 10 minutos como respaldo. IMPORTANTE: sube esta constante cada vez que
     // subas cambios importantes, si no, esto no detecta nada nuevo.
     // =========================================================================
-    const APP_VERSION = "2026-09-01-02";
+    const APP_VERSION = "2026-09-01-03";
 
     async function revisarActualizacionDisponible() {
       try {
@@ -2391,8 +2391,18 @@ var qrcode = function() {
 
         if (res && res.exito) {
           sesionActual = res.datos;
-          if (recordarVal) localStorage.setItem(LS_SESION_GUARDADA, JSON.stringify(sesionActual));
-          else localStorage.removeItem(LS_SESION_GUARDADA);
+          if (recordarVal) {
+            localStorage.setItem(LS_SESION_GUARDADA, JSON.stringify(sesionActual));
+            // Le pide al navegador que NO borre el almacenamiento de este sitio bajo presión
+            // de espacio/batería — común en Android con "optimización" agresiva. No es garantía
+            // absoluta (si el usuario tiene activado "borrar datos al cerrar" en Chrome, eso
+            // ningún código lo puede saltar), pero sí ayuda contra el borrado automático.
+            if (navigator.storage && navigator.storage.persist) {
+              navigator.storage.persist().then(concedido => console.log('[DIAG] Almacenamiento persistente concedido:', concedido));
+            }
+          } else {
+            localStorage.removeItem(LS_SESION_GUARDADA);
+          }
           entrarAlApp();
         } else {
           msg.innerText = res ? res.mensaje : "Error desconocido al validar.";
