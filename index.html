@@ -82,15 +82,16 @@
     @media (max-width: 768px) { .metrica-fila { grid-template-columns: 1fr; } .metrica-valor { text-align: left; } }
 
     .lista-planificador { display: flex; flex-direction: column; gap: 8px; min-height: 70px; padding: 8px; background: #f8f9fa; border-radius: 8px; border: 1px dashed #ddd; }
-    .planificador-item { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; display: flex; align-items: center; gap: 8px; }
+    .planificador-item { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
     .planificador-item.arrastrando { opacity: 0.35; }
+    .planificador-item-top { display: flex; align-items: center; gap: 8px; }
     .planificador-item .drag-handle { cursor: grab; color: #bbb; font-size: 1.1em; user-select: none; }
     .planificador-info { flex: 1; min-width: 0; }
     .planificador-info .p-top { font-weight: bold; font-size: 0.88em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .planificador-info .p-producto { font-size: 0.78em; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .planificador-orden { background: var(--euro-black); color: #fff; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.72em; font-weight: bold; flex-shrink: 0; }
-    .planificador-acciones { display: flex; gap: 4px; flex-shrink: 0; }
-    .planificador-acciones button { border: none; background: #eee; border-radius: 6px; width: 26px; height: 26px; cursor: pointer; font-size: 0.8em; }
+    .planificador-acciones { display: flex; gap: 6px; width: 100%; }
+    .planificador-acciones button { flex: 1; border: none; background: #eee; border-radius: 6px; height: 34px; cursor: pointer; font-size: 0.8em; font-weight: bold; }
     .planificador-acciones button:hover { background: #ddd; }
     @media (max-width: 768px) { #gridPlanificador { grid-template-columns: 1fr !important; } }
     .user-profile h2 { margin: 0; font-size: 1.5em; font-weight: 600; color: #000; }
@@ -2057,7 +2058,7 @@ var qrcode = function() {
     // 10 minutos como respaldo. IMPORTANTE: sube esta constante cada vez que
     // subas cambios importantes, si no, esto no detecta nada nuevo.
     // =========================================================================
-    const APP_VERSION = "2026-09-01-01";
+    const APP_VERSION = "2026-09-01-02";
 
     async function revisarActualizacionDisponible() {
       try {
@@ -2234,6 +2235,7 @@ var qrcode = function() {
         // todavía no tiene uno) — así el backend puede verificar quién dice ser de
         // verdad, en vez de creerle a lo que el navegador afirme en cada petición.
         if (sesionActual && sesionActual.sesionToken) datos.sesionToken = sesionActual.sesionToken;
+        console.log('[DIAG] llamarAPI', accion, '— ¿lleva sesionToken?', !!datos.sesionToken, datos.sesionToken ? ('...' + datos.sesionToken.slice(-8)) : '(ninguno)');
 
         let response = await fetch(API_URL, {
           method: 'POST',
@@ -2242,6 +2244,7 @@ var qrcode = function() {
         });
         let json = await response.json();
         if (json && json.sesionInvalida) {
+          console.warn('[DIAG] El servidor RECHAZÓ el token en', accion, '— respuesta completa:', json);
           cerrarSesion();
           mostrarAviso("Sesión expirada", "Tu sesión ya no es válida — vuelve a iniciar sesión.", true);
         }
@@ -2364,10 +2367,12 @@ var qrcode = function() {
     function intentarRestaurarSesion() {
       try {
         let guardada = localStorage.getItem(LS_SESION_GUARDADA);
+        console.log('[DIAG] intentarRestaurarSesion — ¿hay algo guardado?', !!guardada);
         if (!guardada) return;
         sesionActual = JSON.parse(guardada);
+        console.log('[DIAG] Restaurado de localStorage:', sesionActual.usuario, sesionActual.rol, '...' + (sesionActual.sesionToken || '').slice(-8));
         entrarAlApp();
-      } catch (e) { localStorage.removeItem(LS_SESION_GUARDADA); }
+      } catch (e) { console.error('[DIAG] Error al restaurar sesión:', e); localStorage.removeItem(LS_SESION_GUARDADA); }
     }
 
     async function procesarLogin(e) {
@@ -3146,16 +3151,18 @@ var qrcode = function() {
     function construirItemPlanificador_(t, contexto, numero) {
       let numHtml = contexto === 'dia' ? `<div class="planificador-orden">${numero}</div>` : '';
       let accionesHtml = contexto === 'pool'
-        ? `<button onclick="agregarAlDia_('${t.id}')" title="Agregar al día">➕</button>`
-        : `<button onclick="moverOrdenPlanificador_('${t.id}', -1)" title="Subir">▲</button><button onclick="moverOrdenPlanificador_('${t.id}', 1)" title="Bajar">▼</button><button onclick="quitarDelDia_('${t.id}')" title="Quitar del día">✖</button>`;
+        ? `<button onclick="agregarAlDia_('${t.id}')">➕ Agregar al día</button>`
+        : `<button onclick="moverOrdenPlanificador_('${t.id}', -1)">▲ Subir</button><button onclick="moverOrdenPlanificador_('${t.id}', 1)">▼ Bajar</button><button onclick="quitarDelDia_('${t.id}')">✖ Quitar</button>`;
 
       return `
         <div class="planificador-item" draggable="true" data-id="${t.id}" data-contexto="${contexto}">
-          ${numHtml}
-          <span class="drag-handle">⠿</span>
-          <div class="planificador-info">
-            <div class="p-top">${t.id} · ${t.cliente}</div>
-            <div class="p-producto">${t.productoTecnica}</div>
+          <div class="planificador-item-top">
+            ${numHtml}
+            <span class="drag-handle">⠿</span>
+            <div class="planificador-info">
+              <div class="p-top">${t.id} · ${t.cliente}</div>
+              <div class="p-producto">${t.productoTecnica}</div>
+            </div>
           </div>
           <div class="planificador-acciones">${accionesHtml}</div>
         </div>`;
