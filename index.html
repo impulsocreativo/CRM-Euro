@@ -11,10 +11,13 @@
   <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#c30f16">
+  <meta name="theme-color" content="#2E2420">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="CRM Euro">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root { --euro-black: #07000d; --euro-red: #c30f16; --euro-dark-gray: #7f7f7f; --euro-light-gray: #b8b8b8; --bg-body: #f8f9fa; --bg-sidebar: #e5e5e5; --text-main: #2c3e50; }
 
@@ -283,6 +286,188 @@
       #loteEtiquetasPrint, #loteEtiquetasPrint * { visibility: visible; }
       #loteEtiquetasPrint { position: static; left: 0; }
     }
+
+    /* =====================================================================
+       REDISEÑO 2026 — "Taller cálido"
+       Capa de tema: crema + terracota, esquinas generosas, sombras suaves.
+       ===================================================================== */
+    :root {
+      --bg-body: #FBF6EF; --bg-sidebar: #F3EADF; --text-main: #3A2E2A;
+      --surface: #FFFFFF; --surface-2: #FFF9F2; --line: #EFE3D4; --muted: #8C7B70;
+      --accent: #D9483B; --accent-strong: #BE3529; --accent-soft: #FDE7E3;
+      --ink: #2E2420; --ok: #3F9B6B; --warn: #E39A2D; --info: #3E7CB1; --violet: #8A62B8;
+      --radius: 18px; --radius-sm: 12px;
+      --shadow: 0 2px 4px rgba(94,60,40,.04), 0 8px 24px rgba(94,60,40,.07);
+      --shadow-hover: 0 4px 8px rgba(94,60,40,.06), 0 14px 32px rgba(94,60,40,.12);
+      --font-body: 'Nunito', ui-rounded, 'SF Pro Rounded', 'Segoe UI', system-ui, sans-serif;
+      --font-title: 'Fraunces', 'Georgia', 'Times New Roman', serif;
+      --euro-red: var(--accent); --euro-black: var(--ink); --euro-dark-gray: #A8978A; --euro-light-gray: #E2D3C3;
+    }
+    * { font-family: var(--font-body); }
+    body { background: var(--bg-body); color: var(--text-main); -webkit-font-smoothing: antialiased; }
+    h1, h2, .card h1, .login-card h2, .user-profile h2 { font-family: var(--font-title); letter-spacing: -0.01em; }
+    button { transition: transform .12s ease, box-shadow .2s ease, background-color .2s ease, filter .2s ease; }
+    button:active:not(:disabled) { transform: scale(.97); }
+    :focus-visible { outline: 3px solid rgba(217,72,59,.35); outline-offset: 2px; }
+
+    /* ---- Login ---- */
+    #loginScreen { background:
+      radial-gradient(900px 500px at 15% 10%, #FFE3C9 0%, transparent 60%),
+      radial-gradient(800px 500px at 90% 90%, #FAD4CF 0%, transparent 55%), var(--bg-body); padding: 20px; }
+    .login-card { background: var(--surface); border-radius: 28px; padding: 40px 34px 34px; max-width: 420px; box-shadow: 0 20px 60px rgba(94,60,40,.16); border: 1px solid var(--line); }
+    .login-card img { width: 170px; margin-bottom: 14px; }
+    .login-card h2 { color: var(--ink); font-size: 1.7em; margin-bottom: 6px; font-weight: 600; }
+    .login-sub { color: var(--muted); margin: 0 0 24px; font-size: .95em; }
+    .login-error { background: var(--accent-soft); color: var(--accent-strong); padding: 10px 14px; border-radius: var(--radius-sm); font-weight: 600; }
+    .login-card .check-row { display:flex; align-items:center; gap:10px; margin-bottom:20px; padding:12px 14px; background: var(--surface-2); border-radius: var(--radius-sm); border:1px solid var(--line); }
+    .login-card .check-row input { accent-color: var(--accent); width:20px !important; height:20px; margin:0; }
+    .login-card .check-row label { text-align:left; margin:0 !important; font-weight:600 !important; font-size:.9em !important; cursor:pointer; color: var(--text-main); }
+
+    /* ---- Formularios ---- */
+    .form-group label { color: var(--text-main); font-weight: 700; font-size: .85em; margin-bottom: 6px; }
+    .form-group input, .form-group textarea, .form-group select, .search-box input, .busqueda-global input {
+      border: 1.5px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px; background: var(--surface-2); color: var(--text-main); transition: border-color .2s, box-shadow .2s, background .2s; }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus, .search-box input:focus, .busqueda-global input:focus {
+      border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 4px rgba(217,72,59,.12); outline: none; }
+    .btn-submit, .btn-actualizar, .desktop-action-btn, .btn-produccion { background: var(--accent); border-radius: 999px; padding: 12px 22px; font-weight: 800; box-shadow: 0 6px 16px rgba(217,72,59,.28); }
+    .btn-submit { padding: 14px; font-size: 1.05em; }
+    .btn-submit:hover:not(:disabled), .btn-actualizar:hover, .btn-produccion:hover { background: var(--accent-strong); box-shadow: 0 8px 20px rgba(217,72,59,.36); }
+    .btn-submit:disabled { opacity: .65; }
+    .btn-terminado, .btn-entregado { border-radius: 999px; }
+    .btn-terminado { background: var(--ok); } .btn-entregado { background: var(--info); }
+    .desktop-action-btn:disabled { background: #F1E8DD !important; color: #B2A296 !important; box-shadow: none; }
+
+    /* ---- Barra lateral ---- */
+    .sidebar { background: var(--bg-sidebar); border-right: 1px solid var(--line); }
+    .sidebar-logo { background: var(--ink); margin: 14px 14px 4px; border-radius: 20px; padding: 18px 22px; }
+    .user-profile { padding: 18px 22px 8px; }
+    .user-profile h2 { font-size: 1.35em; color: var(--ink); font-weight: 600; }
+    .user-profile .divider { display: none; }
+    .user-profile p { display: inline-block; margin-top: 6px; padding: 3px 12px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-strong); font-size: .8em; font-weight: 800; }
+    .busqueda-global { padding: 4px 18px 12px; }
+    .busqueda-global input { border-radius: 999px; padding: 11px 16px; }
+    .resultados-busqueda-global { border-radius: var(--radius-sm); border: 1px solid var(--line); box-shadow: var(--shadow-hover); left: 18px; right: 18px; }
+    .resultado-item { color: var(--text-main); border-bottom-color: var(--line); } .resultado-item:hover { background: var(--surface-2); }
+    .nav-menu { padding: 8px 14px; gap: 4px; overflow-y: auto; }
+    .nav-btn { background: transparent; color: var(--text-main); font-size: 1em; font-weight: 700; padding: 12px 16px; border-radius: 14px; gap: 12px; }
+    .nav-btn:hover { background: rgba(217,72,59,.09); color: var(--accent-strong); }
+    .nav-btn.active { background: var(--surface); color: var(--accent-strong); box-shadow: var(--shadow); }
+    .logout-container { padding: 12px 14px 18px; }
+    .btn-logout { background: transparent; color: var(--muted); border: 1.5px solid var(--line); justify-content: center; }
+    .btn-logout:hover { background: var(--accent-soft); color: var(--accent-strong); border-color: transparent; }
+
+    .mobile-header { background: var(--ink); border-radius: 0 0 22px 22px; }
+
+    /* ---- Contenido y tarjetas ---- */
+    .content { padding: 28px; }
+    .card { background: transparent; box-shadow: none; padding: 0; max-width: 1100px; }
+    .card h1 { color: var(--ink); font-size: 2.1em; font-weight: 600; margin-bottom: 4px; }
+    .card h2 { color: var(--ink); font-weight: 600; font-size: 1.35em; }
+    .card p.subtitle { color: var(--muted); font-size: 1.02em; margin-bottom: 26px; }
+    #avisoSinConexion { border-radius: var(--radius-sm) !important; background: #FFF1D6 !important; border-color: #F6DDA5 !important; color: #8A5B0B !important; }
+
+    .dashboard-stats { gap: 14px; margin-bottom: 32px; }
+    .stat-card { background: var(--surface) !important; border: 1px solid var(--line); border-left: none !important; border-radius: var(--radius); box-shadow: var(--shadow); text-align: left; padding: 18px 18px 16px; position: relative; overflow: hidden; }
+    .stat-card::before { content: ''; position: absolute; left: 0; top: 0; right: 0; height: 5px; background: var(--c, var(--accent)); }
+    .stat-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); }
+    .stat-card h3 { justify-content: flex-start; text-align: left; color: var(--muted); font-weight: 700; font-size: .85em; min-height: 2.4em; }
+    .stat-card p { font-family: var(--font-title); font-size: 2.4em; font-weight: 600; }
+    .stat-total { --c: var(--info); } .stat-activos { --c: var(--warn); } .stat-terminados { --c: var(--ok); }
+    .stat-entregados { --c: #4A6FA5; } .stat-recoleccion { --c: var(--violet); }
+    .stat-total p { color: var(--info); } .stat-activos p { color: #C07A12; } .stat-terminados p { color: var(--ok); }
+    .stat-entregados p { color: #4A6FA5; } .stat-recoleccion p { color: var(--violet); }
+
+    .table-header-container h2 { margin: 0; }
+    .tab-btn { background: var(--surface); color: var(--text-main); border: 1.5px solid var(--line); border-radius: 999px; padding: 8px 18px; font-weight: 700; }
+    .tab-btn:hover { border-color: var(--accent); color: var(--accent-strong); background: var(--surface); }
+    .tab-btn.active-tab { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 4px 12px rgba(217,72,59,.28); }
+
+    .ticket-visual-card, .movimiento-item { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .ticket-visual-card { margin-bottom: 14px; }
+    .ticket-card-header { background: transparent; padding: 18px 22px; }
+    .ticket-card-header:hover { background: var(--surface-2); }
+    .ticket-card-header h3 { color: var(--ink); }
+    .ticket-card-body { background: var(--surface-2); border-top: 1px dashed var(--line); padding: 0 22px 22px; }
+    .movimiento-wrapper { border-radius: var(--radius); }
+    .movimiento-item { padding: 16px 18px; }
+    .movimiento-info .mov-top { color: var(--ink); font-weight: 800; }
+    .movimiento-info .mov-producto { color: var(--muted); }
+    .movimiento-detalle { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); }
+    .ticket-meta-info { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+    .miniatura-galeria, .gallery-images iframe { border-radius: 14px; border: 1px solid var(--line); }
+    .movimiento-swipe-accion .mobile-action-btn { background: var(--ok); } .movimiento-swipe-eliminar { background: #C9473B; }
+
+    /* Prioridades: tinte suave + borde izquierdo redondeado */
+    .prioridad-atiempo, .prioridad-atiempo .ticket-card-header, .prioridad-atiempo .ticket-card-body, .movimiento-item.prioridad-atiempo { background-color: #EEF7F1 !important; border-left: 6px solid var(--ok); }
+    .prioridad-urgente, .prioridad-urgente .ticket-card-header, .prioridad-urgente .ticket-card-body, .movimiento-item.prioridad-urgente { background-color: #FFF4E2 !important; border-left: 6px solid var(--warn); }
+    .prioridad-bomberazo, .prioridad-bomberazo .ticket-card-header, .prioridad-bomberazo .ticket-card-body, .movimiento-item.prioridad-bomberazo { background-color: #FDEAE7 !important; border-left: 6px solid #D2402F; }
+
+    .badge { padding: 5px 13px; font-weight: 800; font-size: .78em; letter-spacing: .01em; }
+    .bg-nuevo { background: #FCE9C6; color: #8A5B0B; } .bg-produccion { background: #D9E8F6; color: #24557F; }
+    .bg-terminado { background: #D8EFE2; color: #256B46; } .bg-entregado { background: #DCE5F3; color: #2F4F82; }
+    .bg-recoleccion { background: #E9DDF5; color: #5E3C8A; } .bg-aprobacion { background: #D9E8F6; color: #24557F; }
+
+    .timeline::before { background: var(--line); } .timeline-dot { border-color: var(--surface); box-shadow: 0 0 0 1px var(--line); }
+    .timeline-msg { color: var(--text-main); } .timeline-meta, .timeline-sistema .timeline-msg { color: var(--muted); }
+
+    table { border-radius: var(--radius-sm); overflow: hidden; } th { background: var(--ink); } tr { border-bottom-color: var(--line); } tr:nth-child(even) { background: var(--surface-2); }
+    .btn-icon:hover { background: var(--accent-soft); border-radius: 10px; }
+
+    /* ---- Modales ---- */
+    .modal-overlay { background: rgba(46,36,32,.55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+    .modal-content { background: var(--surface); border-radius: 26px; padding: 30px; box-shadow: 0 24px 64px rgba(46,36,32,.3); animation: modalIn .22s ease-out; }
+    @keyframes modalIn { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
+    .btn-close { color: var(--muted); width: 36px; height: 36px; border-radius: 50%; top: 14px; right: 14px; font-size: 1.5em; line-height: 1; display:flex; align-items:center; justify-content:center; }
+    .btn-close:hover { background: var(--accent-soft); color: var(--accent-strong); }
+
+    /* ---- Calendario, métricas, planificador ---- */
+    .calendario-celda { border-color: var(--line); border-radius: 14px; background: var(--surface); }
+    .calendario-hoy { box-shadow: inset 0 0 0 2px var(--accent); }
+    .calendario-badge { background: var(--accent); }
+    .metrica-barra-fondo { background: var(--line); } .metrica-barra { background: linear-gradient(90deg, #E8794B, var(--accent)); }
+    .lista-planificador { background: var(--surface-2); border: 2px dashed var(--line); border-radius: var(--radius); }
+    .planificador-item { background: var(--surface); border-color: var(--line); border-radius: var(--radius-sm); }
+    .planificador-orden { background: var(--accent); }
+    .planificador-acciones button { background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; color: var(--text-main); }
+    .planificador-acciones button:hover { background: var(--accent-soft); }
+
+    .fab-nuevo-pedido { background: var(--accent); box-shadow: 0 10px 24px rgba(217,72,59,.45); width: 62px; height: 62px; }
+
+    /* ---- Móvil ---- */
+    @media (max-width: 768px) {
+      .content { padding: 18px 14px 90px; }
+      .card h1 { font-size: 1.75em; }
+      .dashboard-stats { grid-template-columns: repeat(2, 1fr); }
+      .stat-recoleccion { grid-column: 1 / -1; }
+      .stat-card { padding: 14px 12px; } .stat-card p { font-size: 1.9em; } .stat-card h3 { font-size: .78em; }
+      .sidebar { top: 65px; box-shadow: 8px 0 30px rgba(46,36,32,.2); }
+      .sidebar-overlay.active { background: rgba(46,36,32,.45); }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+    /* ---- Modo oscuro (cálido) ---- */
+    body.modo-oscuro {
+      --bg-body: #1C1715; --bg-sidebar: #241E1B; --text-main: #F0E6DC;
+      --surface: #2B2420; --surface-2: #322A25; --line: #43372F; --muted: #A89A8E;
+      --ink: #F6EDE3; --accent-soft: rgba(217,72,59,.18); --accent: #EA5A4C; --accent-strong: #FF8A7C;
+      --shadow: 0 2px 4px rgba(0,0,0,.25), 0 8px 24px rgba(0,0,0,.3);
+    }
+    body.modo-oscuro #loginScreen { background: var(--bg-body); }
+    body.modo-oscuro .sidebar-logo, body.modo-oscuro .mobile-header { background: #120E0C; }
+    body.modo-oscuro .card, body.modo-oscuro .modal-content, body.modo-oscuro .ticket-visual-card, body.modo-oscuro .movimiento-item,
+    body.modo-oscuro .stat-card, body.modo-oscuro .ticket-meta-info, body.modo-oscuro .movimiento-detalle,
+    body.modo-oscuro .ticket-card-header, body.modo-oscuro .ticket-card-body, body.modo-oscuro .login-card, body.modo-oscuro .calendario-celda { color: var(--text-main) !important; border-color: var(--line) !important; }
+    body.modo-oscuro .card { background: transparent !important; }
+    body.modo-oscuro .modal-content, body.modo-oscuro .ticket-visual-card, body.modo-oscuro .movimiento-item, body.modo-oscuro .stat-card,
+    body.modo-oscuro .ticket-meta-info, body.modo-oscuro .login-card, body.modo-oscuro .calendario-celda { background-color: var(--surface) !important; }
+    body.modo-oscuro .ticket-card-header { background-color: transparent !important; }
+    body.modo-oscuro .ticket-card-body, body.modo-oscuro .movimiento-detalle { background-color: var(--surface-2) !important; }
+    body.modo-oscuro .prioridad-atiempo, body.modo-oscuro .prioridad-atiempo .ticket-card-body { background-color: #1F2E26 !important; }
+    body.modo-oscuro .prioridad-urgente, body.modo-oscuro .prioridad-urgente .ticket-card-body { background-color: #35291A !important; }
+    body.modo-oscuro .prioridad-bomberazo, body.modo-oscuro .prioridad-bomberazo .ticket-card-body { background-color: #3A2220 !important; }
+    body.modo-oscuro input, body.modo-oscuro select, body.modo-oscuro textarea { background-color: var(--surface-2); color: var(--text-main); border-color: var(--line); }
+    body.modo-oscuro .btn-icon { background-color: transparent !important; }
+    body.modo-oscuro .badge { filter: brightness(.95) saturate(1.1); }
   </style>
   <!-- Firebase (solo para notificaciones push; firebaseConfig no es secreto) -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
@@ -1630,7 +1815,8 @@ var qrcode = function() {
   <div id="loginScreen">
     <div class="login-card">
       <img src="assets/LogoEuroFondoBlanco.svg" alt="Euro Playeras e Insumos Textiles">
-      <h2>Acceso al Taller</h2>
+      <h2>¡Qué gusto verte!</h2>
+      <p class="login-sub">Entra para ver cómo va el taller hoy.</p>
       <p id="msgErrorLogin" class="login-error"></p>
       <form id="formLogin" onsubmit="procesarLogin(event)" autocomplete="off">
         <div class="form-group">
@@ -1641,9 +1827,9 @@ var qrcode = function() {
           <label for="loginPin">PIN</label>
           <input type="text" id="loginPin" name="codigoAcceso" required autocomplete="off" inputmode="numeric" pattern="[0-9]*" style="-webkit-text-security: disc; text-security: disc;">
         </div>
-        <div class="form-group" style="display:flex; align-items:center; gap:8px; margin-bottom:20px;">
-          <input type="checkbox" id="loginRecordar" style="width:auto; margin:0;">
-          <label for="loginRecordar" style="margin:0; font-weight:normal; cursor:pointer;">Mantener sesión iniciada en este dispositivo</label>
+        <div class="check-row">
+          <input type="checkbox" id="loginRecordar" checked>
+          <label for="loginRecordar">Mantener sesión iniciada en este dispositivo</label>
         </div>
         <button type="submit" id="btnEntrar" class="btn-submit">Entrar al Taller</button>
       </form>
@@ -1672,7 +1858,7 @@ var qrcode = function() {
       </div>
 
       <div class="busqueda-global">
-        <input type="text" id="inputBusquedaGlobal" placeholder="🔍 Buscar ticket, cliente, folio..." oninput="buscarGlobal()" autocomplete="off">
+        <input type="text" id="inputBusquedaGlobal" placeholder="🔍 Buscar ticket, cliente o folio" oninput="buscarGlobal()" autocomplete="off">
         <div id="resultadosBusquedaGlobal" class="resultados-busqueda-global"></div>
       </div>
 
@@ -2058,7 +2244,7 @@ var qrcode = function() {
     // 10 minutos como respaldo. IMPORTANTE: sube esta constante cada vez que
     // subas cambios importantes, si no, esto no detecta nada nuevo.
     // =========================================================================
-    const APP_VERSION = "2026-09-01-03";
+    const APP_VERSION = "2026-10-31-01";
 
     async function revisarActualizacionDisponible() {
       try {
@@ -2235,7 +2421,6 @@ var qrcode = function() {
         // todavía no tiene uno) — así el backend puede verificar quién dice ser de
         // verdad, en vez de creerle a lo que el navegador afirme en cada petición.
         if (sesionActual && sesionActual.sesionToken) datos.sesionToken = sesionActual.sesionToken;
-        console.log('[DIAG] llamarAPI', accion, '— ¿lleva sesionToken?', !!datos.sesionToken, datos.sesionToken ? ('...' + datos.sesionToken.slice(-8)) : '(ninguno)');
 
         let response = await fetch(API_URL, {
           method: 'POST',
@@ -2244,7 +2429,7 @@ var qrcode = function() {
         });
         let json = await response.json();
         if (json && json.sesionInvalida) {
-          console.warn('[DIAG] El servidor RECHAZÓ el token en', accion, '— respuesta completa:', json);
+          console.warn('[SESION] El servidor rechazó el token en', accion);
           cerrarSesion();
           mostrarAviso("Sesión expirada", "Tu sesión ya no es válida — vuelve a iniciar sesión.", true);
         }
@@ -2360,19 +2545,61 @@ var qrcode = function() {
 
     const LS_SESION_GUARDADA = "crmEuroSesionGuardada";
 
+    // Almacén de sesión redundante: localStorage + IndexedDB + cookie. Se guarda en
+    // los tres y, al abrir, se lee del primero que responda y se "repara" los demás.
+    // Así, si algún navegador/modo de ahorro borra una de las capas, la sesión sigue viva.
+    const SesionStore = {
+      DB: 'crmEuroSesion', STORE: 'kv', KEY: 'sesion', COOKIE: 'crmEuroSes',
+      _idb() {
+        return new Promise((ok, fail) => {
+          try {
+            let r = indexedDB.open(this.DB, 1);
+            r.onupgradeneeded = () => r.result.createObjectStore(this.STORE);
+            r.onsuccess = () => ok(r.result);
+            r.onerror = () => fail(r.error);
+          } catch (e) { fail(e); }
+        });
+      },
+      async _idbSet(v) { try { let db = await this._idb(); await new Promise(ok => { let tx = db.transaction(this.STORE, 'readwrite'); tx.objectStore(this.STORE).put(v, this.KEY); tx.oncomplete = ok; tx.onerror = ok; }); db.close(); } catch (e) {} },
+      async _idbGet() { try { let db = await this._idb(); let v = await new Promise(ok => { let rq = db.transaction(this.STORE).objectStore(this.STORE).get(this.KEY); rq.onsuccess = () => ok(rq.result); rq.onerror = () => ok(null); }); db.close(); return v || null; } catch (e) { return null; } },
+      async _idbDel() { try { let db = await this._idb(); await new Promise(ok => { let tx = db.transaction(this.STORE, 'readwrite'); tx.objectStore(this.STORE).delete(this.KEY); tx.oncomplete = ok; tx.onerror = ok; }); db.close(); } catch (e) {} },
+      _cookieSet(txt, dias) { try { document.cookie = this.COOKIE + '=' + encodeURIComponent(txt) + '; max-age=' + (dias * 86400) + '; path=/; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : ''); } catch (e) {} },
+      _cookieGet() { try { let m = document.cookie.split('; ').find(c => c.startsWith(this.COOKIE + '=')); return m ? decodeURIComponent(m.slice(this.COOKIE.length + 1)) : null; } catch (e) { return null; } },
+      async guardar(ses) {
+        let txt = JSON.stringify(ses);
+        try { localStorage.setItem(LS_SESION_GUARDADA, txt); } catch (e) {}
+        this._cookieSet(txt, 30);
+        await this._idbSet(txt);
+        try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+      },
+      async leer() {
+        let capas = { localStorage: null, indexedDB: null, cookie: null };
+        try { capas.localStorage = localStorage.getItem(LS_SESION_GUARDADA); } catch (e) {}
+        capas.indexedDB = await this._idbGet();
+        capas.cookie = this._cookieGet();
+        console.log('[SESION] capas con datos →', Object.keys(capas).filter(k => capas[k]));
+        let txt = capas.localStorage || capas.indexedDB || capas.cookie;
+        if (!txt) return null;
+        try { let ses = JSON.parse(txt); this.guardar(ses); return ses; } catch (e) { return null; }
+      },
+      async borrar() {
+        try { localStorage.removeItem(LS_SESION_GUARDADA); } catch (e) {}
+        this._cookieSet('', 0);
+        await this._idbDel();
+      }
+    };
+
     // Se llama al cargar la página. Si hay una sesión guardada (casilla "Mantener
     // sesión iniciada" activada), entra directo sin pedir usuario/PIN. Si el token
     // ya expiró del lado del servidor, la primera llamada a la API lo detecta sola
     // (llamarAPI ya maneja "sesionInvalida") y regresa al login automáticamente.
-    function intentarRestaurarSesion() {
+    async function intentarRestaurarSesion() {
       try {
-        let guardada = localStorage.getItem(LS_SESION_GUARDADA);
-        console.log('[DIAG] intentarRestaurarSesion — ¿hay algo guardado?', !!guardada);
-        if (!guardada) return;
-        sesionActual = JSON.parse(guardada);
-        console.log('[DIAG] Restaurado de localStorage:', sesionActual.usuario, sesionActual.rol, '...' + (sesionActual.sesionToken || '').slice(-8));
+        let ses = await SesionStore.leer();
+        if (!ses || !ses.sesionToken) return;
+        sesionActual = ses;
         entrarAlApp();
-      } catch (e) { console.error('[DIAG] Error al restaurar sesión:', e); localStorage.removeItem(LS_SESION_GUARDADA); }
+      } catch (e) { console.error('[SESION] Error al restaurar:', e); }
     }
 
     async function procesarLogin(e) {
@@ -2391,18 +2618,8 @@ var qrcode = function() {
 
         if (res && res.exito) {
           sesionActual = res.datos;
-          if (recordarVal) {
-            localStorage.setItem(LS_SESION_GUARDADA, JSON.stringify(sesionActual));
-            // Le pide al navegador que NO borre el almacenamiento de este sitio bajo presión
-            // de espacio/batería — común en Android con "optimización" agresiva. No es garantía
-            // absoluta (si el usuario tiene activado "borrar datos al cerrar" en Chrome, eso
-            // ningún código lo puede saltar), pero sí ayuda contra el borrado automático.
-            if (navigator.storage && navigator.storage.persist) {
-              navigator.storage.persist().then(concedido => console.log('[DIAG] Almacenamiento persistente concedido:', concedido));
-            }
-          } else {
-            localStorage.removeItem(LS_SESION_GUARDADA);
-          }
+          if (recordarVal) { await SesionStore.guardar(sesionActual); }
+          else { await SesionStore.borrar(); }
           entrarAlApp();
         } else {
           msg.innerText = res ? res.mensaje : "Error desconocido al validar.";
@@ -2416,7 +2633,7 @@ var qrcode = function() {
 
     function cerrarSesion() {
       sesionActual = null;
-      localStorage.removeItem(LS_SESION_GUARDADA);
+      SesionStore.borrar();
       document.getElementById('appScreen').style.display = 'none';
       document.getElementById('loginScreen').style.display = 'flex';
       document.getElementById('formLogin').reset();
