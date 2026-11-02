@@ -1,17 +1,1012 @@
-{
-  "name": "CRM Euro - Taller",
-  "short_name": "CRM Euro",
-  "description": "Sistema de gestión de pedidos para taller y tienda - Euro Playeras e Insumos Textiles",
-  "start_url": "./",
-  "scope": "./",
-  "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#07000d",
-  "theme_color": "#c30f16",
-  "icons": [
-    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
-    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ]
+const CARPETA_CACHE_VENDEDOR = '1M74kfmqW67XNJlsogYweWXbarg8ssc0g';
+const CARPETA_CACHE_DISENO = '1GuXJ7-VfJ38XvfuV4ZryZdNeYkxEYikh';
+const CARPETA_CALIDAD_BORDADO = '1hLQFTgcIV1zywkXd1IrNz1TD9BKKRclH';
+const ROLES_ASIGNABLES = ["Vendedor", "Diseñador", "Jefe de Taller", "Bordados"];
+
+// =====================================================================
+// SESIONES — antes, cualquier acción confiaba en el campo "rol" que mandaba
+// el propio navegador (fácil de falsificar desde las herramientas de
+// desarrollador). Ahora, al iniciar sesión se genera un token real, se
+// guarda en el servidor, y las acciones sensibles verifican ESE token en
+// vez de creerle al frontend quién dice ser.
+// =====================================================================
+const DURACION_SESION_HORAS = 12;       // sesión normal: cubre una jornada larga de sobra
+const DURACION_SESION_RECORDAR_HORAS = 24 * 30; // "Mantener sesión iniciada": 30 días
+
+function getHojaSesiones() {
+  let hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sesiones");
+  if (!hoja) {
+    hoja = SpreadsheetApp.getActiveSpreadsheet().insertSheet("Sesiones");
+    hoja.appendRow(["Token", "Usuario", "Rol", "FechaCreacion", "DuracionHoras"]);
+  }
+  return hoja;
+}
+
+function crearSesion_(usuario, rol, recordar) {
+  let hoja = getHojaSesiones();
+  let duracion = recordar ? DURACION_SESION_RECORDAR_HORAS : DURACION_SESION_HORAS;
+  // Limpieza oportunista: al crear una sesión nueva, se borran las viejas/expiradas
+  // del mismo usuario, para que la hoja no crezca sin control con el tiempo.
+  let datos = hoja.getDataRange().getValues();
+  let ahora = new Date();
+  for (let i = datos.length - 1; i >= 1; i--) {
+    if (datos[i][1] === usuario) {
+      let duracionFila = datos[i][4] || DURACION_SESION_HORAS;
+      let horas = (ahora - new Date(datos[i][3])) / (1000 * 60 * 60);
+      if (horas > duracionFila) hoja.deleteRow(i + 1);
+    }
+  }
+  let token = Utilities.getUuid();
+  hoja.appendRow([token, usuario, rol, new Date(), duracion]);
+  return token;
+}
+
+// Devuelve el rol REAL asociado a ese token (ignorando lo que diga el resto
+// de la petición) o { valido:false } si el token no existe o ya expiró.
+function validarSesion_(token) {
+  let hoja = getHojaSesiones();
+  let datos = hoja.getDataRange().getValues();
+  let ahora = new Date();
+  for (let i = 1; i < datos.length; i++) {
+    if (datos[i][0] === token) {
+      let duracion = datos[i][4] || DURACION_SESION_HORAS;
+      let horas = (ahora - new Date(datos[i][3])) / (1000 * 60 * 60);
+      if (horas > duracion) return { valido: false, expirado: true };
+      return { valido: true, usuario: datos[i][1], rol: datos[i][2] };
+    }
+  }
+  return { valido: false };
+}
+
+const MSJ_SESION_INVALIDA_ = { exito: false, mensaje: "Tu sesión no es válida o expiró. Vuelve a iniciar sesión.", sesionInvalida: true };
+
+// Devuelve la sesión válida (con el rol REAL, no el que mande el navegador),
+// o null si el token no existe/expiró — el llamador decide qué hacer con eso.
+function exigirSesion_(datos) {
+  let sesion = validarSesion_(datos.sesionToken);
+  return sesion.valido ? sesion : null;
+}
+
+// =====================================================================
+// NUEVO CEREBRO (API RECEPTORA) - Recibe las peticiones desde GitHub
+// =====================================================================
+function doPost(e) {
+  try {
+    let body = JSON.parse(e.postData.contents);
+    let accion = body.accion;
+    let datos = body.datos || {};
+    let resultado;
+
+    // Enrutador de acciones
+    switch(accion) {
+      case 'validarAcceso':
+        resultado = validarAcceso(datos.usuario, datos.pin, datos.recordar);
+        break;
+      case 'crearUsuario':
+        resultado = crearUsuario(datos);
+        break;
+      case 'obtenerUsuarios':
+        resultado = obtenerUsuarios(datos);
+        break;
+      case 'registrarNuevoTicket':
+        resultado = registrarNuevoTicket(datos);
+        break;
+      case 'actualizarTicket':
+        resultado = actualizarTicket(datos);
+        break;
+      case 'procesarTicketDiseno':
+        resultado = procesarTicketDiseno(datos);
+        break;
+      case 'obtenerTickets':
+        resultado = obtenerTickets(datos);
+        break;
+      case 'guardarSuscripcion':
+        resultado = guardarSuscripcion(datos);
+        break;
+      case 'eliminarSuscripcion':
+        resultado = eliminarSuscripcion(datos);
+        break;
+      case 'eliminarTicket':
+        resultado = eliminarTicket(datos);
+        break;
+      case 'guardarPlanDia':
+        resultado = guardarPlanDia(datos);
+        break;
+      case 'quitarDeAsignacion':
+        resultado = quitarDeAsignacion(datos);
+        break;
+      default:
+        resultado = { exito: false, mensaje: "Acción no reconocida por la API." };
+    }
+
+    return ContentService.createTextOutput(JSON.stringify(resultado))
+                         .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({ exito: false, mensaje: "Error crítico de API: " + error.message }))
+                         .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// Para evitar errores si alguien entra directo a la URL de Google Script
+function doGet(e) {
+  return ContentService.createTextOutput("API CRM Euro en funcionamiento. Acceso denegado vía GET.");
+}
+
+// =====================================================================
+// LÓGICA DE NEGOCIO INTACTA (NUESTRO RESPALDO SEGURO)
+// =====================================================================
+
+function getHojaUsuarios() { return SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Usuarios"); }
+
+function validarAcceso(usuario, pin, recordar) {
+  try {
+    let hoja = getHojaUsuarios();
+    if (!hoja) return { exito: false, mensaje: "No se encontró la pestaña 'Usuarios'." };
+    
+    let datos = hoja.getDataRange().getValues();
+    let inputUser = usuario ? usuario.toString().trim() : "";
+    let inputPin = pin ? pin.toString().trim() : "";
+    
+    for (let i = 1; i < datos.length; i++) {
+      let userSheet = datos[i][0] ? datos[i][0].toString().trim() : "";
+      let rolSheet  = datos[i][1] ? datos[i][1].toString().trim() : ""; 
+      let pinSheet  = datos[i][2] ? datos[i][2].toString().trim() : ""; 
+      let nameSheet = datos[i][3] ? datos[i][3].toString().trim() : ""; 
+      
+      if (userSheet.toLowerCase() === inputUser.toLowerCase() && pinSheet === inputPin) {
+        let token = crearSesion_(userSheet, rolSheet, recordar === true);
+        return { exito: true, datos: { usuario: userSheet, rol: rolSheet, nombre: nameSheet, sesionToken: token } };
+      }
+    }
+    return { exito: false, mensaje: "Usuario o PIN incorrectos." };
+  } catch (error) { return { exito: false, mensaje: "Error en servidor: " + error.message }; }
+}
+
+function crearUsuario(datos) {
+  try {
+    let sesion = exigirSesion_(datos);
+    if (!sesion) return MSJ_SESION_INVALIDA_;
+    if (sesion.rol !== "Administrador") return { exito: false, mensaje: "Solo un Administrador puede crear usuarios." };
+
+    let hoja = getHojaUsuarios();
+    if (!hoja) return { exito: false, mensaje: "No se encontró la pestaña 'Usuarios'." };
+    let usuarioNuevo = datos.usuario ? datos.usuario.toString().trim() : "";
+    let rolNuevo = datos.rol ? datos.rol.toString().trim() : "";
+    let pinNuevo = datos.pin ? datos.pin.toString().trim() : "";
+    let nombreNuevo = datos.nombre ? datos.nombre.toString().trim() : "";
+    if (!usuarioNuevo || !rolNuevo || !pinNuevo || !nombreNuevo) return { exito: false, mensaje: "Todos los campos son obligatorios." };
+    if (ROLES_ASIGNABLES.indexOf(rolNuevo) === -1) return { exito: false, mensaje: "Rol no válido." };
+
+    let datosHoja = hoja.getDataRange().getValues();
+    for (let i = 1; i < datosHoja.length; i++) {
+      let userSheet = datosHoja[i][0] ? datosHoja[i][0].toString().trim().toLowerCase() : "";
+      if (userSheet === usuarioNuevo.toLowerCase()) return { exito: false, mensaje: "Ya existe un usuario con ese nombre." };
+    }
+    hoja.appendRow([usuarioNuevo, rolNuevo, pinNuevo, nombreNuevo]);
+    return { exito: true, mensaje: "Usuario '" + usuarioNuevo + "' creado con éxito." };
+  } catch (error) { return { exito: false, mensaje: "Error: " + error.message }; }
+}
+
+function obtenerUsuarios(datos) {
+  try {
+    let sesion = exigirSesion_(datos);
+    if (!sesion) return [];
+    if (sesion.rol !== "Administrador") return [];
+
+    let hoja = getHojaUsuarios();
+    if (!hoja) return [];
+    let datos = hoja.getDataRange().getValues();
+    let lista = [];
+    for (let i = 1; i < datos.length; i++) {
+      if (datos[i][0]) lista.push({ usuario: datos[i][0].toString(), rol: datos[i][1] ? datos[i][1].toString() : "", nombre: datos[i][3] ? datos[i][3].toString() : "" });
+    }
+    return lista;
+  } catch (error) { return []; }
+}
+
+function getHojaTickets() { return SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Tickets"); }
+
+function generarIdTicket(hoja) {
+  let ultimaFila = hoja.getLastRow();
+  if (ultimaFila === 1) return "TKT-001";
+  let numero = parseInt(hoja.getRange(ultimaFila, 1).getValue().split("-")[1], 10); 
+  return "TKT-" + (numero + 1).toString().padStart(3, '0');
+}
+
+function esFechaValida(fecha) { return fecha instanceof Date && !isNaN(fecha); }
+
+function guardarArchivosDrive(archivos, idPrefijo, idCarpeta) {
+  let urls = [];
+  if (archivos && archivos.length > 0) {
+    let carpeta = DriveApp.getFolderById(idCarpeta);
+    archivos.forEach(archivo => {
+      let dataDecodificada = Utilities.base64Decode(archivo.base64);
+      let blob = Utilities.newBlob(dataDecodificada, archivo.mimeType, idPrefijo + "_" + archivo.nombre);
+      urls.push(carpeta.createFile(blob).getUrl());
+    });
+  }
+  return urls;
+}
+
+function folioYaExisteEnOtroTicket_(folio, idExcluir) {
+  if (!folio || folio.toString().trim() === "") return null;
+  let hoja = getHojaTickets();
+  let ultimaFila = hoja.getLastRow();
+  if (ultimaFila <= 1) return null;
+  let datos = hoja.getRange(2, 1, ultimaFila - 1, 14).getValues();
+  let buscado = folio.toString().trim().toLowerCase();
+  for (let i = 0; i < datos.length; i++) {
+    let idFila = datos[i][0];
+    if (idExcluir && idFila === idExcluir) continue;
+    let folioFila = datos[i][13];
+    if (folioFila && folioFila.toString().trim().toLowerCase() === buscado) return idFila;
+  }
+  return null;
+}
+
+// Saca los IDs de archivo de Drive de cualquier texto que contenga links tipo
+// .../file/d/ID/view — así encontramos las fotos sin importar en qué columna
+// quedaron (referencias, mockups, o las de control de calidad, que van dentro
+// del texto de las notas del sistema).
+function extraerIdsDriveDeTexto_(texto) {
+  if (!texto) return [];
+  let regex = /\/d\/([a-zA-Z0-9_-]{10,})/g;
+  let ids = [];
+  let match;
+  while ((match = regex.exec(texto)) !== null) ids.push(match[1]);
+  return ids;
+}
+
+// Exclusivo Administrador. Borra el registro de la hoja Y manda sus fotos
+// (referencias, mockups, control de calidad) a la papelera de Drive — no las
+// destruye para siempre, por si el propio borrado fue un error.
+function eliminarTicket(datos) {
+  try {
+    let sesion = exigirSesion_(datos);
+    if (!sesion) return MSJ_SESION_INVALIDA_;
+    if (sesion.rol !== "Administrador") return { exito: false, mensaje: "Solo un Administrador puede eliminar tickets." };
+    if (!datos.id) return { exito: false, mensaje: "Falta el ID del ticket." };
+
+    let hoja = getHojaTickets();
+    let datosHoja = hoja.getDataRange().getValues();
+    let filaIndex = datosHoja.findIndex(f => f[0] === datos.id) + 1;
+    if (filaIndex === 0) return { exito: false, mensaje: "Ticket no encontrado (puede que ya se haya borrado)." };
+
+    let fila = datosHoja[filaIndex - 1];
+    let idsDrive = []
+      .concat(extraerIdsDriveDeTexto_(fila[6]))   // urlImagen (referencias del vendedor)
+      .concat(extraerIdsDriveDeTexto_(fila[10]))  // urlMockup
+      .concat(extraerIdsDriveDeTexto_(fila[9]));  // notasDisenador (ahí van las fotos de control de calidad)
+
+    let borrados = 0;
+    idsDrive.forEach(fileId => {
+      try { DriveApp.getFileById(fileId).setTrashed(true); borrados++; } catch (e) { console.error("No se pudo mandar a la papelera el archivo " + fileId + ": " + e.message); }
+    });
+
+    hoja.deleteRow(filaIndex);
+    return { exito: true, mensaje: "Ticket " + datos.id + " eliminado (" + borrados + " archivo(s) enviado(s) a la papelera de Drive)." };
+  } catch (error) { return { exito: false, mensaje: "Error: " + error.message }; }
+}
+
+// =====================================================================
+// PLANIFICADOR DIARIO (solo Administrador)
+// -----------------------------------------------------------------
+// "Fecha de trabajo" (col 21) y "orden" (col 22) son un concepto totalmente
+// aparte de "fecha de entrega": el Administrador decide en qué día interno
+// se EJECUTA un ticket de Taller (Diseño/Producción), y en qué orden dentro
+// de ese día — sin importar cuándo se le prometió al cliente. Solo aplica a
+// destino "Taller"; Maquila (Bordados) no pasa por este planificador.
+// =====================================================================
+
+// Recibe la lista de IDs YA ORDENADA para un día específico (tal como quedó
+// después de arrastrar/reordenar en el Planificador) y sobreescribe por
+// completo la fecha/orden de esos tickets para ese día. Es idempotente: se
+// puede llamar cada vez que se suelta una tarjeta, sin acumular basura.
+function guardarPlanDia(datos) {
+  try {
+    let sesion = exigirSesion_(datos);
+    if (!sesion) return MSJ_SESION_INVALIDA_;
+    if (sesion.rol !== "Administrador") return { exito: false, mensaje: "Solo un Administrador puede usar el Planificador." };
+    if (!datos.fecha || !Array.isArray(datos.ids)) return { exito: false, mensaje: "Faltan la fecha o la lista de tickets." };
+
+    let hoja = getHojaTickets();
+    let datosHoja = hoja.getDataRange().getValues();
+    let indicePorId = {};
+    datosHoja.forEach((fila, i) => { indicePorId[fila[0]] = i + 1; });
+
+    let fechaParts = datos.fecha.split("-");
+    let fechaGuardar = new Date(fechaParts[0], fechaParts[1] - 1, fechaParts[2]);
+
+    let actualizados = 0;
+    datos.ids.forEach((id, orden) => {
+      let filaIndex = indicePorId[id];
+      if (!filaIndex) return;
+      hoja.getRange(filaIndex, 21).setValue(fechaGuardar);
+      hoja.getRange(filaIndex, 22).setValue(orden);
+      actualizados++;
+    });
+
+    return { exito: true, mensaje: "Plan del día guardado (" + actualizados + " ticket(s))." };
+  } catch (error) { return { exito: false, mensaje: "Error: " + error.message }; }
+}
+
+// Regresa un ticket a "Sin Asignar" (limpia fecha/orden de trabajo).
+function quitarDeAsignacion(datos) {
+  try {
+    let sesion = exigirSesion_(datos);
+    if (!sesion) return MSJ_SESION_INVALIDA_;
+    if (sesion.rol !== "Administrador") return { exito: false, mensaje: "Solo un Administrador puede usar el Planificador." };
+    if (!datos.id) return { exito: false, mensaje: "Falta el ID del ticket." };
+
+    let hoja = getHojaTickets();
+    let datosHoja = hoja.getDataRange().getValues();
+    let filaIndex = datosHoja.findIndex(f => f[0] === datos.id) + 1;
+    if (filaIndex === 0) return { exito: false, mensaje: "Ticket no encontrado." };
+
+    hoja.getRange(filaIndex, 21).setValue("");
+    hoja.getRange(filaIndex, 22).setValue("");
+    return { exito: true, mensaje: "Ticket regresado a Sin Asignar." };
+  } catch (error) { return { exito: false, mensaje: "Error: " + error.message }; }
+}
+
+function registrarNuevoTicket(datos) {
+  try {
+    let sesion = exigirSesion_(datos);
+    if (!sesion) return MSJ_SESION_INVALIDA_;
+    if (sesion.rol !== "Vendedor" && sesion.rol !== "Administrador") return { exito: false, mensaje: "Tu rol no puede crear tickets." };
+
+    if (datos.folioVenta && datos.folioVenta.toString().trim() !== "") {
+      let existente = folioYaExisteEnOtroTicket_(datos.folioVenta, null);
+      if (existente) return { exito: false, mensaje: "El folio '" + datos.folioVenta + "' ya está usado en el ticket " + existente + "." };
+    }
+    let hoja = getHojaTickets();
+    let idTicket = generarIdTicket(hoja);
+    let urlsArchivos = guardarArchivosDrive(datos.archivos, idTicket, CARPETA_CACHE_VENDEDOR);
+    let destino = (datos.destino === "Maquila") ? "Maquila" : "Taller";
+    // "Sin Diseño": el vendedor indica que el material no requiere pasar por Diseño (ej. ya viene listo/definido).
+    // Solo aplica a destino Taller; en Maquila el flujo siempre pasa directo a Bordados de todas formas.
+    let sinDiseno = (destino === "Taller" && datos.sinDiseno === true);
+    let estatusInicial = (destino === "Maquila") ? "Nuevo / Pendiente Bordado" : (sinDiseno ? "Listo para Producción" : "Nuevo / Pendiente Diseño");
+    let timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+    let notaSistema = "[" + timestamp + " - Sistema]: Ticket creado. Estatus inicial: " + estatusInicial + ".";
+    
+    // creadoPor usa sesion.usuario (el real, del token) y no datos.usuario (lo que mande el
+    // navegador) — así el "oculto" de verdad no se puede falsificar.
+    // fechaTrabajo/ordenTrabajo (col 21/22) siempre nacen vacías: todo ticket nuevo entra
+    // como "Sin Asignar" al planificador diario, sin importar el destino — el Administrador
+    // decide después en qué día se trabaja (ver guardarPlanDia).
+    let nuevaFila = [idTicket, new Date(), datos.fechaEntrega, datos.cliente, datos.cantidad, datos.productoTecnica, urlsArchivos.join("\n"), datos.notasVendedor, estatusInicial, notaSistema, "", (sinDiseno ? "SinDiseno" : ""), "", datos.folioVenta || "", destino, new Date(), "", sesion.usuario, datos.horaEntrega || "", "", ""];
+    hoja.appendRow(nuevaFila);
+    notificarPorNuevoEstatus_(estatusInicial, idTicket, sesion.usuario);
+    return { exito: true, mensaje: "Ticket " + idTicket + " registrado con éxito." };
+  } catch (error) { return { exito: false, mensaje: "Error: " + error.message }; }
+}
+
+function actualizarTicket(datos) {
+  try {
+    let sesion = exigirSesion_(datos);
+    if (!sesion) return MSJ_SESION_INVALIDA_;
+    if (sesion.rol !== "Vendedor" && sesion.rol !== "Administrador") return { exito: false, mensaje: "Tu rol no puede editar tickets." };
+
+    let hoja = getHojaTickets();
+    let datosHoja = hoja.getDataRange().getValues();
+    let filaIndex = datosHoja.findIndex(f => f[0] === datos.id) + 1;
+    if (filaIndex === 0) throw new Error("Ticket no encontrado.");
+
+    if (datos.folioVenta && datos.folioVenta.toString().trim() !== "") {
+      let existente = folioYaExisteEnOtroTicket_(datos.folioVenta, datos.id);
+      if (existente) return { exito: false, mensaje: "El folio '" + datos.folioVenta + "' ya está usado en el ticket " + existente + "." };
+    }
+
+    hoja.getRange(filaIndex, 3).setValue(datos.fechaEntrega);
+    hoja.getRange(filaIndex, 4).setValue(datos.cliente);
+    hoja.getRange(filaIndex, 5).setValue(datos.cantidad);
+    hoja.getRange(filaIndex, 6).setValue(datos.productoTecnica);
+    if (datos.folioVenta) hoja.getRange(filaIndex, 14).setValue(datos.folioVenta);
+    if (datos.destino) hoja.getRange(filaIndex, 15).setValue(datos.destino);
+    if (typeof datos.sinDiseno === "boolean") hoja.getRange(filaIndex, 12).setValue(datos.sinDiseno ? "SinDiseno" : "");
+    if (typeof datos.horaEntrega === "string") hoja.getRange(filaIndex, 20).setValue(datos.horaEntrega);
+    
+    if (datos.notasVendedor && datos.notasVendedor.trim() !== "") {
+      let notasAct = hoja.getRange(filaIndex, 8).getValue();
+      let fechaHoy = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+      hoja.getRange(filaIndex, 8).setValue(notasAct + (notasAct ? "\n\n" : "") + "[" + fechaHoy + " - Vendedor/Admin]: " + datos.notasVendedor);
+    }
+    let nuevasUrls = guardarArchivosDrive(datos.archivos, datos.id, CARPETA_CACHE_VENDEDOR);
+    if (nuevasUrls.length > 0) {
+      let urlsAct = hoja.getRange(filaIndex, 7).getValue();
+      hoja.getRange(filaIndex, 7).setValue(urlsAct + (urlsAct ? "\n" : "") + nuevasUrls.join("\n"));
+    }
+    hoja.getRange(filaIndex, 16).setValue(new Date()); // fechaUltimaActualizacion
+    hoja.getRange(filaIndex, 17).setValue(""); // se reinicia el aviso de "estancado"
+    return { exito: true, mensaje: "Ticket actualizado." };
+  } catch (error) { return { exito: false, mensaje: "Error: " + error.message }; }
+}
+
+// Mismo mapa que estatusCorregiblesPorRol_() del frontend — se repite aquí porque
+// el servidor ya no puede confiar en que el frontend de verdad haya respetado esa
+// regla antes de mandar la petición.
+const ESTATUS_CORREGIBLES_POR_ROL_ = {
+  "Administrador": ["Nuevo / Pendiente Diseño", "Nuevo / Pendiente Bordado", "Listo para Producción", "Mockup Enviado - Esperando Aprobación", "Terminado Pendiente de Recolección", "Terminado", "Entregado"],
+  "Vendedor": ["Mockup Enviado - Esperando Aprobación", "Terminado Pendiente de Recolección", "Terminado", "Entregado"],
+  "Jefe de Taller": ["Listo para Producción", "Terminado"],
+  "Bordados": ["Nuevo / Pendiente Bordado", "Terminado Pendiente de Recolección"],
+  "Diseñador": ["Nuevo / Pendiente Diseño", "Mockup Enviado - Esperando Aprobación", "Listo para Producción"]
+};
+
+function procesarTicketDiseno(datos) {
+  try {
+    let sesion = exigirSesion_(datos);
+    if (!sesion) return MSJ_SESION_INVALIDA_;
+
+    if (datos.esCorreccion) {
+      let permitidos = ESTATUS_CORREGIBLES_POR_ROL_[sesion.rol] || [];
+      if (permitidos.indexOf(datos.estatusDestino) === -1) {
+        return { exito: false, mensaje: "Tu rol no tiene permiso para corregir a ese estatus." };
+      }
+    }
+
+    let hoja = getHojaTickets();
+    let datosHoja = hoja.getDataRange().getValues();
+    let filaIndex = datosHoja.findIndex(f => f[0] === datos.id) + 1;
+    if (filaIndex === 0) throw new Error("Ticket no encontrado.");
+
+    let timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+
+    if (datos.archivos && datos.archivos.length > 0) {
+      let nuevasUrls = guardarArchivosDrive(datos.archivos, datos.id + "_DISENO", CARPETA_CACHE_DISENO);
+      let urlsAct = hoja.getRange(filaIndex, 11).getValue();
+      let bloqueMockup = "--- Archivo/Actualización el " + timestamp + " ---\n" + nuevasUrls.join("\n");
+      
+      if (datos.accionMockup === "reemplazar") hoja.getRange(filaIndex, 11).setValue(nuevasUrls.join("\n")); 
+      else hoja.getRange(filaIndex, 11).setValue(urlsAct + (urlsAct ? "\n" : "") + bloqueMockup);
+    }
+
+    // Todas las notas (las que escribió la persona Y la del sistema documentando el cambio de
+    // estatus) se acumulan sobre la MISMA lectura para no perder ninguna por escrituras encimadas.
+    let notasActuales = hoja.getRange(filaIndex, 10).getValue();
+
+    // Foto de control de calidad (opcional, disponible para varios roles al cerrar un ticket) — va
+    // a una carpeta de Drive aparte, y se deja registrada como nota del sistema en el historial.
+    if (datos.archivosCalidad && datos.archivosCalidad.length > 0) {
+      let urlsCalidad = guardarArchivosDrive(datos.archivosCalidad, datos.id + "_CALIDAD", CARPETA_CALIDAD_BORDADO);
+      notasActuales += (notasActuales ? "\n\n" : "") + "[" + timestamp + " - Sistema]: Foto de control de calidad guardada: " + urlsCalidad.join(", ");
+    }
+
+    if (datos.notasDisenador && datos.notasDisenador.trim() !== "") {
+      notasActuales += (notasActuales ? "\n\n" : "") + "[" + timestamp + " - Taller/Bordados/Admin]: " + datos.notasDisenador;
+    }
+
+    let estatusFinal = datos.estatusDestino;
+    if (estatusFinal && estatusFinal.trim() !== "") {
+      hoja.getRange(filaIndex, 9).setValue(estatusFinal);
+      if (datos.esCorreccion) {
+        notasActuales += (notasActuales ? "\n\n" : "") + "[" + timestamp + " - Sistema]: Estatus CORREGIDO a '" + estatusFinal + "' (corrección manual por " + sesion.usuario + " - " + sesion.rol + ").";
+      } else {
+        notasActuales += (notasActuales ? "\n\n" : "") + "[" + timestamp + " - Sistema]: Estatus actualizado a '" + estatusFinal + "'.";
+      }
+      if (estatusFinal === "Terminado" || estatusFinal === "Entregado" || estatusFinal === "Terminado Pendiente de Recolección") {
+        let fechaTerminoActual = hoja.getRange(filaIndex, 13).getValue();
+        if (!fechaTerminoActual) hoja.getRange(filaIndex, 13).setValue(new Date());
+      }
+      // creadoPor vive en la columna 18, oculta — nunca se le manda al frontend, solo se lee aquí
+      // adentro para saber a qué vendedor específico avisarle (no a todo el rol).
+      let creadoPor = hoja.getRange(filaIndex, 18).getValue();
+      notificarPorNuevoEstatus_(estatusFinal, datos.id, creadoPor);
+
+      // Cuando el Vendedor aprueba un mockup, además del aviso normal a Jefe de Taller
+      // (por entrar a "Listo para Producción"), Diseño también necesita saber que ya
+      // puede preparar los materiales finales de producción.
+      if (datos.notificarDisenoAprobacion) {
+        programarNotificacionDiferida_({ rol: "Diseñador", titulo: "Mockup aprobado por el cliente", cuerpo: "El ticket " + datos.id + " fue aprobado — ya puedes preparar los materiales para producción." });
+      }
+    }
+
+    hoja.getRange(filaIndex, 10).setValue(notasActuales);
+    hoja.getRange(filaIndex, 16).setValue(new Date()); // fechaUltimaActualizacion
+    hoja.getRange(filaIndex, 17).setValue(""); // se reinicia el aviso de "estancado"
+    return { exito: true, mensaje: "Ticket procesado correctamente." };
+  } catch (error) { return { exito: false, mensaje: "Error: " + error.message }; }
+}
+
+function obtenerTickets(datos) {
+  let sesion = exigirSesion_(datos || {});
+  if (!sesion) return [];
+
+  let hoja = getHojaTickets();
+  let ultimaFila = hoja.getLastRow();
+  if (ultimaFila <= 1) return []; 
+  
+  let filas = hoja.getRange(2, 1, ultimaFila - 1, 22).getValues();
+  let tickets = filas.map(fila => ({
+    id: fila[0] || "",
+    fechaIngreso: esFechaValida(fila[1]) ? fila[1].toISOString() : "",
+    fechaEntrega: esFechaValida(fila[2]) ? fila[2].toISOString() : fila[2] || "",
+    cliente: fila[3] || "",
+    cantidad: fila[4] || "",
+    productoTecnica: fila[5] || "",
+    urlImagen: fila[6] || "",
+    notasVendedor: fila[7] || "",
+    estatus: fila[8] || "",
+    notasDisenador: fila[9] || "",
+    urlMockup: fila[10] || "",
+    fechaTermino: esFechaValida(fila[12]) ? fila[12].toISOString() : "",
+    folioVenta: fila[13] || "",
+    destino: fila[14] || "Taller",
+    sinDiseno: fila[11] === "SinDiseno",
+    fechaUltimaActualizacion: esFechaValida(fila[15]) ? fila[15].toISOString() : "",
+    horaEntrega: fila[19] || "",
+    // "Fecha de trabajo": el día interno en que Diseño/Taller deben EJECUTAR el ticket,
+    // asignado por el Administrador desde el Planificador — independiente de la fecha
+    // de ENTREGA al cliente (fechaEntrega). Vacía = "Sin Asignar" todavía.
+    fechaTrabajo: esFechaValida(fila[20]) ? fila[20].toISOString() : (fila[20] || ""),
+    ordenTrabajo: (fila[21] === "" || fila[21] === null) ? null : Number(fila[21])
+    // fila[17] (creadoPor) a propósito NO se incluye aquí: nunca llega al frontend.
+  })).filter(t => t.id !== "");
+  return tickets.reverse(); 
+}
+
+// =====================================================================
+// NOTIFICACIONES PUSH (Firebase Cloud Messaging)
+// =====================================================================
+// IMPORTANTE: FCM_CLIENT_EMAIL y FCM_PRIVATE_KEY NO van escritos aquí.
+// Se leen desde "Script Properties" (Configuración del proyecto > Propiedades
+// del script, en el editor de Apps Script). Así la llave privada nunca queda
+// visible en el código fuente. Ver instrucciones al final de la conversación.
+const FCM_PROJECT_ID = "crmeuro-14d7f"; // esto no es secreto
+
+// Función SIN guion bajo al final a propósito: así SÍ aparece en el menú
+// "Ejecutar función" del editor. Sirve para forzar la pantalla de autorización
+// de los permisos que necesita el sistema de notificaciones: crear triggers
+// (ScriptApp) y hacer peticiones de red hacia Firebase/Google (UrlFetchApp).
+// Después de correrla una vez y aceptar los permisos, no hace falta volver a tocarla.
+function autorizarNotificaciones() {
+  ScriptApp.getProjectTriggers();
+  UrlFetchApp.fetch("https://www.google.com", { muteHttpExceptions: true });
+  Logger.log("Permisos de triggers y de peticiones externas autorizados correctamente.");
+}
+
+// Función de diagnóstico: revisa cómo quedó guardada la clave SIN imprimirla completa.
+function diagnosticarClaveFCM() {
+  let props = PropertiesService.getScriptProperties();
+  let clientEmail = props.getProperty("FCM_CLIENT_EMAIL");
+  let privateKey = props.getProperty("FCM_PRIVATE_KEY");
+
+  Logger.log("FCM_CLIENT_EMAIL: " + (clientEmail || "(vacío / no existe)"));
+  if (!privateKey) { Logger.log("FCM_PRIVATE_KEY: (vacío / no existe)"); return; }
+
+  Logger.log("Largo total de FCM_PRIVATE_KEY: " + privateKey.length + " caracteres");
+  Logger.log("Primeros 40 caracteres: " + privateKey.substring(0, 40));
+  Logger.log("Últimos 40 caracteres: " + privateKey.substring(privateKey.length - 40));
+  Logger.log("¿Empieza/termina con comillas? " + ((privateKey.trim().startsWith('"') || privateKey.trim().startsWith("'"))));
+  Logger.log("¿Contiene '\\\\n' literal (barra invertida + n)? " + (privateKey.indexOf("\\n") !== -1));
+  Logger.log("¿Contiene salto de línea real? " + (privateKey.indexOf("\n") !== -1));
+  Logger.log("¿Contiene 'BEGIN PRIVATE KEY'? " + (privateKey.indexOf("BEGIN PRIVATE KEY") !== -1));
+  Logger.log("¿Contiene 'END PRIVATE KEY'? " + (privateKey.indexOf("END PRIVATE KEY") !== -1));
+}
+
+function getHojaSuscripciones() {
+  let hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Suscripciones");
+  if (!hoja) {
+    hoja = SpreadsheetApp.getActiveSpreadsheet().insertSheet("Suscripciones");
+    hoja.appendRow(["Usuario", "Rol", "Token", "FechaRegistro"]);
+  }
+  return hoja;
+}
+
+function guardarSuscripcion(datos) {
+  try {
+    let sesion = exigirSesion_(datos);
+    if (!sesion) return MSJ_SESION_INVALIDA_;
+    if (!datos.token) return { exito: false, mensaje: "Falta el token de notificación." };
+    let hoja = getHojaSuscripciones();
+    let datosHoja = hoja.getDataRange().getValues();
+    let filaIndex = -1;
+    for (let i = 1; i < datosHoja.length; i++) {
+      if (datosHoja[i][2] === datos.token) { filaIndex = i + 1; break; }
+    }
+    // Se usa la identidad YA VERIFICADA (sesion.usuario/sesion.rol), no lo que
+    // mande el navegador — así nadie puede registrarse como si fuera otro rol.
+    let fila = [sesion.usuario, sesion.rol, datos.token, new Date()];
+    if (filaIndex > 0) hoja.getRange(filaIndex, 1, 1, 4).setValues([fila]);
+    else hoja.appendRow(fila);
+    return { exito: true, mensaje: "Notificaciones activadas." };
+  } catch (error) { return { exito: false, mensaje: "Error: " + error.message }; }
+}
+
+function eliminarSuscripcion(datos) {
+  try {
+    let sesion = exigirSesion_(datos);
+    if (!sesion) return MSJ_SESION_INVALIDA_;
+    if (!datos.token) return { exito: false, mensaje: "Falta el token de notificación." };
+    let hoja = getHojaSuscripciones();
+    let datosHoja = hoja.getDataRange().getValues();
+    for (let i = datosHoja.length - 1; i >= 1; i--) {
+      if (datosHoja[i][2] === datos.token) { hoja.deleteRow(i + 1); break; }
+    }
+    return { exito: true, mensaje: "Notificaciones desactivadas." };
+  } catch (error) { return { exito: false, mensaje: "Error: " + error.message }; }
+}
+
+function obtenerAccessTokenFCM_() {
+  let props = PropertiesService.getScriptProperties();
+  let clientEmail = props.getProperty("FCM_CLIENT_EMAIL");
+  let privateKey = props.getProperty("FCM_PRIVATE_KEY");
+  if (!clientEmail || !privateKey) throw new Error("Faltan las Script Properties FCM_CLIENT_EMAIL / FCM_PRIVATE_KEY.");
+
+  privateKey = privateKey.trim();
+
+  // Si por error se pegó el archivo JSON completo de la cuenta de servicio
+  // (en vez de solo el valor de "private_key"), lo detectamos y lo extraemos solos.
+  if (privateKey.startsWith("{")) {
+    try {
+      let jsonCompleto = JSON.parse(privateKey);
+      if (jsonCompleto.private_key) privateKey = jsonCompleto.private_key;
+    } catch (e) {
+      // No era JSON válido; seguimos con el flujo normal de abajo.
+    }
+  }
+
+  // Si se pegó con comillas incluidas (copiando directo del JSON con todo y comillas), las quitamos.
+  if ((privateKey.startsWith('"') && privateKey.endsWith('"')) || (privateKey.startsWith("'") && privateKey.endsWith("'"))) {
+    privateKey = privateKey.slice(1, -1);
+  }
+  // Normaliza saltos de línea sin importar cómo hayan quedado al pegar:
+  // literal \r\n, literal \n, o saltos de línea reales de Windows.
+  privateKey = privateKey.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+  if (privateKey.indexOf("BEGIN PRIVATE KEY") === -1 || privateKey.indexOf("END PRIVATE KEY") === -1) {
+    throw new Error("FCM_PRIVATE_KEY no tiene el formato esperado (falta '-----BEGIN PRIVATE KEY-----' o '-----END PRIVATE KEY-----'). Vuelve a copiar el valor completo del JSON.");
+  }
+
+  let ahora = Math.floor(Date.now() / 1000);
+  let header = { alg: "RS256", typ: "JWT" };
+  let claimSet = {
+    iss: clientEmail,
+    scope: "https://www.googleapis.com/auth/firebase.messaging",
+    aud: "https://oauth2.googleapis.com/token",
+    exp: ahora + 3600,
+    iat: ahora
+  };
+  let base64Url = (obj) => Utilities.base64EncodeWebSafe(JSON.stringify(obj)).replace(/=+$/, "");
+  let jwtSinFirmar = base64Url(header) + "." + base64Url(claimSet);
+  let firmaBytes = Utilities.computeRsaSha256Signature(jwtSinFirmar, privateKey);
+  let firma = Utilities.base64EncodeWebSafe(firmaBytes).replace(/=+$/, "");
+  let jwt = jwtSinFirmar + "." + firma;
+
+  let respuesta = UrlFetchApp.fetch("https://oauth2.googleapis.com/token", {
+    method: "post",
+    contentType: "application/x-www-form-urlencoded",
+    payload: { grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt },
+    muteHttpExceptions: true
+  });
+  let json = JSON.parse(respuesta.getContentText());
+  if (!json.access_token) throw new Error("No se pudo obtener token OAuth: " + respuesta.getContentText());
+  return json.access_token;
+}
+
+function obtenerTokensPorRol_(rol) {
+  let hoja = getHojaSuscripciones();
+  let datos = hoja.getDataRange().getValues();
+  let tokens = [];
+  for (let i = 1; i < datos.length; i++) { if (datos[i][1] === rol && datos[i][2]) tokens.push(datos[i][2]); }
+  return tokens;
+}
+
+function obtenerTokensPorUsuario_(usuario) {
+  if (!usuario) return [];
+  let hoja = getHojaSuscripciones();
+  let datos = hoja.getDataRange().getValues();
+  let tokens = [];
+  for (let i = 1; i < datos.length; i++) { if (datos[i][0] === usuario && datos[i][2]) tokens.push(datos[i][2]); }
+  return tokens;
+}
+
+function enviarNotificacionATokens_(tokens, titulo, cuerpo, etiquetaLog) {
+  if (!tokens || tokens.length === 0) return;
+  try {
+    let accessToken = obtenerAccessTokenFCM_();
+    tokens.forEach(token => {
+      let mensaje = {
+        message: {
+          token: token,
+          // "data" en vez de "notification": si mandamos "notification", el navegador la muestra
+          // AUTOMÁTICAMENTE con ícono genérico, y ENCIMA nuestro propio código también la muestra
+          // — eso era la duplicada. Con "data" el navegador nunca la muestra solo; el único que
+          // la dibuja es nuestro Service Worker (o el handler en primer plano), con nuestro ícono.
+          data: { title: titulo, body: cuerpo },
+          webpush: { fcmOptions: { link: "https://impulsocreativo.github.io/CRM-Euro/" } }
+        }
+      };
+      let respuesta = UrlFetchApp.fetch("https://fcm.googleapis.com/v1/projects/" + FCM_PROJECT_ID + "/messages:send", {
+        method: "post",
+        contentType: "application/json",
+        headers: { Authorization: "Bearer " + accessToken },
+        payload: JSON.stringify(mensaje),
+        muteHttpExceptions: true
+      });
+      let codigo = respuesta.getResponseCode();
+      if (codigo === 200) {
+        console.log("Notificación enviada OK a " + etiquetaLog + " (token ..." + token.slice(-12) + ")");
+      } else {
+        // AQUÍ es donde antes se perdía el error: FCM respondía con un fallo,
+        // pero como no era un error de RED (muteHttpExceptions), no se veía en ningún lado.
+        console.error("FCM rechazó el envío a " + etiquetaLog + " (token ..." + token.slice(-12) + "): [" + codigo + "] " + respuesta.getContentText());
+      }
+    });
+  } catch (error) {
+    // Un fallo al notificar nunca debe tumbar el guardado del ticket.
+    console.error("Error enviando notificación: " + error.message);
+  }
+}
+
+function enviarNotificacionARol(rol, titulo, cuerpo) {
+  let tokens = obtenerTokensPorRol_(rol);
+  if (tokens.length === 0) { console.log("No hay suscripciones para el rol '" + rol + "'."); return; }
+  enviarNotificacionATokens_(tokens, titulo, cuerpo, "rol '" + rol + "'");
+}
+
+// Devuelve true si sí encontró suscripción del usuario específico y le mandó. Devuelve
+// false si no había nada guardado para ese usuario (para que el llamador decida si usa
+// un respaldo, por ejemplo avisarle a todo el rol en su lugar).
+function enviarNotificacionAUsuario_(usuario, titulo, cuerpo) {
+  let tokens = obtenerTokensPorUsuario_(usuario);
+  if (tokens.length === 0) return false;
+  enviarNotificacionATokens_(tokens, titulo, cuerpo, "usuario '" + usuario + "'");
+  return true;
+}
+
+// =====================================================================
+// COLA DE NOTIFICACIONES DIFERIDAS
+// -----------------------------------------------------------------
+// registrarNuevoTicket / procesarTicketDiseno NUNCA deben esperar a que
+// terminen las llamadas de red hacia FCM (eso hacía que guardar un ticket
+// se sintiera "trabado"). En vez de mandar la notificación en el momento,
+// la encolamos, y un ÚNICO trigger recurrente (cada 1 minuto, configurado
+// una sola vez con configurarTriggerNotificaciones) revisa la cola y manda
+// lo que encuentre. Los triggers de "un solo uso, casi al instante" que
+// usábamos antes no son confiables en Apps Script (su granularidad real es
+// de minutos, no segundos), así que mejor usamos uno recurrente y simple.
+//
+// Cada elemento de la cola es: { rol, titulo, cuerpo }  — para todo el equipo de un rol
+//                          o: { usuario, rolRespaldo, titulo, cuerpo } — para una persona
+//                             específica, con respaldo a todo el rol si esa persona no
+//                             tiene notificaciones activadas.
+// =====================================================================
+function programarNotificacionDiferida_(item) {
+  let lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    let props = PropertiesService.getScriptProperties();
+    let cola = JSON.parse(props.getProperty("COLA_NOTIFICACIONES") || "[]");
+    cola.push(item);
+    props.setProperty("COLA_NOTIFICACIONES", JSON.stringify(cola));
+  } catch (error) {
+    console.error("No se pudo encolar la notificación: " + error.message);
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
+  }
+}
+
+const HORA_INICIO_NOTIFICACIONES = 9;  // 9:00 AM
+const HORA_FIN_NOTIFICACIONES = 18;    // 6:00 PM (no se manda nada a partir de esta hora)
+
+// Corre sola cada 1 minuto (trigger recurrente, ver configurarTriggerNotificaciones).
+// Revisa la cola; si hay algo, lo manda; si no, no hace nada.
+function procesarColaNotificaciones_() {
+  // Fuera de horario laboral no se entrega nada — pero tampoco se pierde: la cola se queda
+  // intacta y el siguiente disparador (1 minuto después) la vuelve a revisar. En cuanto entre
+  // a la ventana de 9:00-18:00, se manda todo lo que se haya acumulado mientras tanto.
+  let horaActual = parseInt(Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "H"), 10);
+  if (horaActual < HORA_INICIO_NOTIFICACIONES || horaActual >= HORA_FIN_NOTIFICACIONES) return;
+
+  let lock = LockService.getScriptLock();
+  let cola = [];
+  try {
+    lock.waitLock(10000);
+    let props = PropertiesService.getScriptProperties();
+    cola = JSON.parse(props.getProperty("COLA_NOTIFICACIONES") || "[]");
+    if (cola.length > 0) props.deleteProperty("COLA_NOTIFICACIONES");
+  } catch (error) {
+    console.error("No se pudo leer/vaciar la cola de notificaciones: " + error.message);
+    return;
+  } finally {
+    try { lock.releaseLock(); } catch (e2) {}
+  }
+
+  if (cola.length === 0) return; // nada que mandar, no hace falta registrar nada
+  cola.forEach(item => {
+    if (item.usuario) {
+      let enviado = enviarNotificacionAUsuario_(item.usuario, item.titulo, item.cuerpo);
+      if (!enviado && item.rolRespaldo) {
+        console.log("'" + item.usuario + "' no tiene notificaciones activadas — usando respaldo de rol '" + item.rolRespaldo + "'.");
+        enviarNotificacionARol(item.rolRespaldo, item.titulo, item.cuerpo);
+      }
+    } else if (item.rol) {
+      enviarNotificacionARol(item.rol, item.titulo, item.cuerpo);
+    }
+  });
+}
+
+// Función SIN guion bajo (visible en el menú "Ejecutar"). Se corre UNA SOLA
+// VEZ manualmente para dejar configurado el trigger recurrente. Si ya existe
+// uno, lo borra primero para no duplicarlo. También limpia cualquier trigger
+// viejo de "un solo uso" que haya quedado del sistema anterior.
+function configurarTriggerNotificaciones() {
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'procesarColaNotificaciones_') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('procesarColaNotificaciones_').timeBased().everyMinutes(1).create();
+  Logger.log("Trigger recurrente de notificaciones configurado: correrá cada 1 minuto.");
+}
+
+// Reglas: qué rol (o qué persona específica) se entera cuando un ticket llega a
+// determinado estatus. Solo encola — no manda nada de forma directa/sincrónica.
+//
+// Las notificaciones de "Vendedor" van dirigidas ESPECÍFICAMENTE a quien creó el
+// ticket (no a todo el equipo de ventas) — es quien le da seguimiento a ese cliente.
+// Si esa persona no tiene notificaciones activadas en ningún dispositivo, se le
+// avisa a todo el rol Vendedor como respaldo, para que no se pierda el aviso.
+function notificarPorNuevoEstatus_(estatus, idTicket, creadoPor) {
+  if (estatus === "Nuevo / Pendiente Diseño") {
+    programarNotificacionDiferida_({ rol: "Diseñador", titulo: "Nuevo ticket para Diseño", cuerpo: "El ticket " + idTicket + " necesita diseño." });
+  } else if (estatus === "Nuevo / Pendiente Bordado") {
+    programarNotificacionDiferida_({ rol: "Bordados", titulo: "Nuevo ticket para Bordado", cuerpo: "El ticket " + idTicket + " está listo para bordar." });
+  } else if (estatus === "Listo para Producción") {
+    programarNotificacionDiferida_({ rol: "Jefe de Taller", titulo: "Nuevo ticket en Producción", cuerpo: "El ticket " + idTicket + " está listo para producir." });
+  } else if (estatus === "Mockup Enviado - Esperando Aprobación") {
+    programarNotificacionDiferida_({ usuario: creadoPor, rolRespaldo: "Vendedor", titulo: "Mockup listo para aprobar", cuerpo: "El ticket " + idTicket + " tiene un mockup listo — muéstraselo a tu cliente." });
+  } else if (estatus === "Terminado") {
+    programarNotificacionDiferida_({ usuario: creadoPor, rolRespaldo: "Vendedor", titulo: "Pedido terminado", cuerpo: "El ticket " + idTicket + " ya está terminado / en tienda." });
+  } else if (estatus === "Terminado Pendiente de Recolección") {
+    programarNotificacionDiferida_({ usuario: creadoPor, rolRespaldo: "Vendedor", titulo: "Bordado listo para recolección", cuerpo: "El ticket " + idTicket + " está listo para recoger en maquila." });
+  }
+}
+
+// =====================================================================
+// TAREAS DIARIAS (resumen matutino + aviso de tickets estancados)
+// =====================================================================
+
+// Misma lógica de prioridad que usa el frontend (calcularPrioridad en Index.html),
+// replicada aquí porque el backend no puede ejecutar el JS del navegador.
+function calcularPrioridad_(t) {
+  if (!t.fechaEntrega || t.estatus === "Entregado" || t.estatus === "Terminado") return null;
+  let hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  let entrega = new Date(t.fechaEntrega); entrega.setHours(0, 0, 0, 0);
+  let dias = Math.round((entrega - hoy) / (1000 * 60 * 60 * 24));
+  if (dias <= 0) return "bomberazo";
+  if (dias <= 2) return "urgente";
+  return "atiempo";
+}
+
+// Corre una vez al día (ver configurarTriggersDiarios). Manda un resumen a cada rol
+// con cuántos tickets tiene en su cola, y cuántos de esos son urgentes/bomberazo.
+function enviarResumenDiario() {
+  let tickets = obtenerTickets();
+
+  let colas = {
+    "Diseñador": tickets.filter(t => t.estatus === "Nuevo / Pendiente Diseño"),
+    "Bordados": tickets.filter(t => t.estatus === "Nuevo / Pendiente Bordado"),
+    "Jefe de Taller": tickets.filter(t => t.estatus === "Listo para Producción"),
+    "Vendedor": tickets.filter(t => t.estatus === "Terminado" || t.estatus === "Terminado Pendiente de Recolección" || t.estatus === "Mockup Enviado - Esperando Aprobación")
+  };
+
+  Object.keys(colas).forEach(rol => {
+    let lista = colas[rol];
+    if (lista.length === 0) return; // nada pendiente, no hace falta molestar con una notificación vacía
+    let urgentes = lista.filter(t => { let p = calcularPrioridad_(t); return p === "urgente" || p === "bomberazo"; }).length;
+    let cuerpo = lista.length + " ticket" + (lista.length === 1 ? "" : "s") + " pendiente" + (lista.length === 1 ? "" : "s") + " hoy" + (urgentes > 0 ? ", " + urgentes + " urgente(s)/bomberazo" : ".");
+    programarNotificacionDiferida_({ rol: rol, titulo: "Resumen del día", cuerpo: cuerpo });
+  });
+}
+
+// Corre una vez al día. Si un ticket activo lleva más de UMBRAL_DIAS_ESTANCADO días
+// sin ningún cambio, avisa UNA sola vez al rol dueño de la cola donde está atorado
+// (evita spam: usa la columna 17 como bandera de "ya avisado", que se limpia solita
+// en cuanto alguien vuelve a tocar el ticket).
+const UMBRAL_DIAS_ESTANCADO = 2;
+
+function avisarTicketsEstancados() {
+  let hoja = getHojaTickets();
+  let ultimaFila = hoja.getLastRow();
+  if (ultimaFila <= 1) return;
+
+  let datos = hoja.getRange(2, 1, ultimaFila - 1, 17).getValues();
+  let hoy = new Date();
+
+  const ROL_POR_ESTATUS = {
+    "Nuevo / Pendiente Diseño": "Diseñador",
+    "Nuevo / Pendiente Bordado": "Bordados",
+    "Listo para Producción": "Jefe de Taller",
+    "Mockup Enviado - Esperando Aprobación": "Vendedor",
+    "Terminado": "Vendedor",
+    "Terminado Pendiente de Recolección": "Vendedor"
+  };
+
+  datos.forEach((fila, i) => {
+    let id = fila[0];
+    let estatus = fila[8];
+    let fechaUltimaAct = fila[15];
+    let avisoYaEnviado = fila[16];
+    if (!id || !estatus || avisoYaEnviado === "SI") return;
+    let rol = ROL_POR_ESTATUS[estatus];
+    if (!rol || !esFechaValida(fechaUltimaAct)) return;
+
+    let diasSinMoverse = Math.floor((hoy - fechaUltimaAct) / (1000 * 60 * 60 * 24));
+    if (diasSinMoverse >= UMBRAL_DIAS_ESTANCADO) {
+      programarNotificacionDiferida_({ rol: rol, titulo: "Ticket sin movimiento", cuerpo: "El ticket " + id + " lleva " + diasSinMoverse + " días sin actualizarse." });
+      hoja.getRange(i + 2, 17).setValue("SI");
+    }
+  });
+}
+
+// Limpia los archivos de Drive (referencias, mockups, fotos de calidad) de tickets
+// que ya fueron Entregados hace 30+ días. Los manda a la papelera (no destrucción
+// permanente — Drive los borra solo después de 30 días ahí, así que hay margen para
+// recuperar algo si hiciera falta). La columna 19 evita que se re-procese el mismo
+// ticket cada día una vez que ya se limpió.
+const DIAS_RETENCION_ARCHIVOS = 30;
+
+function limpiarArchivosAntiguos() {
+  let hoja = getHojaTickets();
+  let ultimaFila = hoja.getLastRow();
+  if (ultimaFila <= 1) return;
+
+  let datos = hoja.getRange(2, 1, ultimaFila - 1, 19).getValues();
+  let hoy = new Date();
+  let totalTickets = 0, totalArchivos = 0;
+
+  datos.forEach((fila, i) => {
+    let estatus = fila[8];
+    // Se usa fechaUltimaActualizacion (col 16) y no fechaTermino (col 13): esa última
+    // marca cuándo se completó la producción por primera vez, no cuándo se entregó de
+    // verdad al cliente. fechaUltimaActualizacion sí refleja el momento exacto en que
+    // pasó a "Entregado".
+    let fechaUltimaAct = fila[15];
+    let yaLimpiado = fila[18];
+    if (estatus !== "Entregado" || yaLimpiado === "SI" || !esFechaValida(fechaUltimaAct)) return;
+
+    let diasDesdeEntrega = Math.floor((hoy - fechaUltimaAct) / (1000 * 60 * 60 * 24));
+    if (diasDesdeEntrega < DIAS_RETENCION_ARCHIVOS) return;
+
+    let idsDrive = []
+      .concat(extraerIdsDriveDeTexto_(fila[6]))   // urlImagen (referencias del vendedor)
+      .concat(extraerIdsDriveDeTexto_(fila[10]))  // urlMockup
+      .concat(extraerIdsDriveDeTexto_(fila[9]));  // notasDisenador (ahí van las fotos de control de calidad)
+
+    idsDrive.forEach(fileId => {
+      try { DriveApp.getFileById(fileId).setTrashed(true); totalArchivos++; } catch (e) { console.error("No se pudo mandar a la papelera el archivo " + fileId + ": " + e.message); }
+    });
+
+    let filaSheet = i + 2;
+    hoja.getRange(filaSheet, 7).setValue("");   // urlImagen
+    hoja.getRange(filaSheet, 11).setValue("");  // urlMockup
+    hoja.getRange(filaSheet, 19).setValue("SI"); // marcado como ya procesado, no se repite
+
+    let timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+    let notaActual = fila[9] || "";
+    hoja.getRange(filaSheet, 10).setValue(notaActual + (notaActual ? "\n\n" : "") + "[" + timestamp + " - Sistema]: Archivos de este ticket enviados a la papelera de Drive (30+ días desde la entrega).");
+
+    totalTickets++;
+  });
+
+  if (totalTickets > 0) console.log("Limpieza de archivos: " + totalTickets + " ticket(s), " + totalArchivos + " archivo(s) enviados a la papelera de Drive.");
+}
+
+// Función que ejecutan los dos triggers diarios.
+function tareasDiarias() {
+  enviarResumenDiario();
+  avisarTicketsEstancados();
+  limpiarArchivosAntiguos();
+}
+
+// Función SIN guion bajo (visible en "Ejecutar"). Se corre UNA SOLA VEZ para dejar
+// configurado el trigger diario (8:00 AM). Si ya existe uno, lo reemplaza.
+function configurarTriggersDiarios() {
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'tareasDiarias') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('tareasDiarias').timeBased().atHour(8).everyDays(1).create();
+  Logger.log("Trigger diario configurado: correrá todos los días alrededor de las 8:00 AM.");
 }
