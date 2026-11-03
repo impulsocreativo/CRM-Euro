@@ -92,6 +92,7 @@
   <div class="panel">
     <section class="card"><h3>1 · Prenda</h3><div class="opciones" id="opsPrenda"></div></section>
     <section class="card"><h3>2 · Color de la prenda</h3>
+      <div class="opciones" id="opsParte" style="margin-bottom:10px;display:none;"></div>
       <div class="colores" id="colores"></div>
     </section>
     <section class="card"><h3>Color de fondo</h3>
@@ -156,6 +157,16 @@
   const mv = $('mv'), canvas = $('lienzo'), ctx = canvas.getContext('2d');
   const COLORES = ['#FFFFFF','#111111','#1F2A44','#B3261E','#6B7280','#2F6F4F','#E8B931','#C9B79C'];
   let MODELOS = {}, prenda = 'playera', lado = 'frente', color = '#FFFFFF';
+  // Prendas con partes (ej. la gorra): cada parte tiene su propio color. 'lienzo' = se pinta en la textura
+  // (junto con el arte); 'material' = se tiñe el material del modelo directamente (ej. malla y visera).
+  let parteActiva = 'todo'; const coloresParte = {};
+  const partesDe = p => (MODELOS[p] && MODELOS[p].partes) || null;
+  const colorDe = (p, parte) => (coloresParte[p] && coloresParte[p][parte]) || color;
+  const colorActivo = () => (partesDe(prenda) && parteActiva !== 'todo') ? colorDe(prenda, parteActiva) : color;
+  function aplicarColoresMateriales() {
+    const ps = partesDe(prenda); if (!ps || !mv.model) return;
+    ps.filter(x => x.tipo === 'material').forEach(x => { const mat = mv.model.materials.find(m => m.name === x.material); if (mat) { try { mat.pbrMetallicRoughness.setBaseColorFactor(colorDe(prenda, x.id)); } catch (e) { console.error('No se pudo teñir', x.id, e); } } });
+  }
   const estado = {};            // estado[prenda][lado] = { img, cm, dx, dy, rot }
   let cargada = false, pendiente = null, ultimasCapturas = [];
 
@@ -220,6 +231,7 @@
   async function aplicarReceta(rec) {
     if (!rec) return null;
     if (/^#[0-9a-fA-F]{6}$/.test(rec.color || '')) color = rec.color;
+    if (rec.colores && typeof rec.colores === 'object') coloresParte[rec.prenda] = Object.assign({}, rec.colores);
     if (rec.fondo) { fondo = rec.fondo; cambiarFondo(fondo); }
     if (MODELOS[rec.prenda]) {
       estado[rec.prenda] = {};
@@ -260,7 +272,7 @@
       if (!Object.keys(lados).length) throw new Error('Sube al menos un logo antes de enviar.');
       b.disabled = true; b.textContent = 'Enviando…';
       const nombre = $('invNombre').value.trim();
-      const r = await api('guardarDisenoInvitado', { nombre, comentario: $('invComentario').value.trim(), receta: { prenda, color, fondo, lados } });
+      const r = await api('guardarDisenoInvitado', { nombre, comentario: $('invComentario').value.trim(), receta: { prenda, color, colores: coloresParte[prenda] || {}, fondo, lados } });
       if (!r || r.exito !== true) throw new Error((r && r.mensaje) || 'No se pudo enviar el diseño.');
       const enlace = location.origin + location.pathname + '?d=' + r.token;
       const texto = 'Hola' + (nombre ? ', soy ' + nombre : '') + '. Este es mi diseño en 360° y estos son los logos a emplear (' + MODELOS[prenda].nombre.toLowerCase() + '):\n' + enlace;
@@ -280,7 +292,7 @@
         const s = getSlot(prenda, l); if (!s) return;
         lados[l] = Object.assign({ cm: s.cm, dx: s.dx, dy: s.dy, rot: s.rot }, arteABase64(s.img));
       });
-      let r = await api('guardarMockup3d', { id: ctxCRM.ticketId, receta: { prenda, color, fondo, lados } });
+      let r = await api('guardarMockup3d', { id: ctxCRM.ticketId, receta: { prenda, color, colores: coloresParte[prenda] || {}, fondo, lados } });
       if (!r || r.exito !== true) throw new Error((r && r.mensaje) || 'No se pudo guardar.');
       let extra = '';
       if ($('chkAdjuntar').checked) {
@@ -308,6 +320,7 @@
     $('fondos').innerHTML = FONDOS.map(([n,c]) => `<button class="sw ${n==='transp'?'fondo-transp':''}" data-f="${c}" title="${n}" style="background:${c}" aria-label="Fondo ${n}"></button>`).join('') + '<input type="color" id="fondoLibre" value="#F6EDE2" aria-label="Otro color de fondo">';
     $('fondos').onclick = e => { let b = e.target.closest('[data-f]'); if (b) cambiarFondo(b.dataset.f); };
     $('fondoLibre').oninput = e => cambiarFondo(e.target.value);
+    $('opsParte').onclick = e => { const b = e.target.closest('[data-pa]'); if (b) { parteActiva = b.dataset.pa; marcarActivos(); } };
     $('colorLibre').oninput = e => cambiarColor(e.target.value);
     $('opsLado').onclick = e => { let b = e.target.closest('[data-l]'); if (b) elegirLado(b.dataset.l); };
     $('archivoArte').onchange = e => cargarArte(e.target.files[0]);
@@ -326,18 +339,21 @@
 
   function marcarActivos() {
     document.querySelectorAll('#opsPrenda .opt').forEach(b => b.classList.toggle('activo', b.dataset.p === prenda));
-    document.querySelectorAll('#colores .sw').forEach(b => b.classList.toggle('activo', b.dataset.c.toLowerCase() === color.toLowerCase()));
+    const ps = partesDe(prenda);
+    $('opsParte').style.display = ps ? 'flex' : 'none';
+    if (ps) $('opsParte').innerHTML = [{ id: 'todo', nombre: 'Todo' }].concat(ps).map(x => `<button class="opt ${x.id === parteActiva ? 'activo' : ''}" data-pa="${x.id}">${x.nombre}</button>`).join('');
+    document.querySelectorAll('#colores .sw').forEach(b => b.classList.toggle('activo', b.dataset.c.toLowerCase() === colorActivo().toLowerCase()));
     const lados = Object.keys(MODELOS[prenda] ? MODELOS[prenda].lados : {});
     $('opsLado').innerHTML = lados.map(l => `<button class="opt ${l === lado ? 'activo' : ''}" data-l="${l}" style="text-transform:capitalize">${l}</button>`).join('');
   }
 
   async function elegirPrenda(id) {
-    prenda = id; lado = 'frente'; cargada = false; habilitarCaptura(false);
+    prenda = id; lado = 'frente'; parteActiva = 'todo'; cargada = false; habilitarCaptura(false);
     marcarActivos(); refrescarControles();
     const m = MODELOS[id]; setEstado('Cargando ' + m.nombre.toLowerCase() + '…');
     canvas.width = m.lienzo[0]; canvas.height = m.lienzo[1];
     await new Promise(res => { const f = () => { mv.removeEventListener('load', f); res(); }; mv.addEventListener('load', f); mv.src = 'assets/models/' + m.archivo + (m.v ? '?v=' + m.v : ''); });
-    cargada = true; habilitarCaptura(true); setEstado(m.nombre);
+    cargada = true; aplicarColoresMateriales(); habilitarCaptura(true); setEstado(m.nombre);
     $('credito').innerHTML = m.creditoUrl ? `Modelo 3D de <a href="${m.creditoUrl}" target="_blank" rel="noopener">${m.creditoAutor}</a>, licencia <a href="${m.licenciaUrl}" target="_blank" rel="noopener">${m.licencia}</a>. Simplificado y adaptado para CRM Euro.` : 'Modelo de prueba (sin textura real).';
     mv.cameraOrbit = m.lados.frente.camara; if (mv.jumpCameraToGoal) mv.jumpCameraToGoal();
     await repintar(true);
@@ -346,7 +362,13 @@
     lado = l; marcarActivos(); refrescarControles();
     const m = MODELOS[prenda]; if (m.lados[l] && m.lados[l].camara) { mv.cameraOrbit = m.lados[l].camara; }
   }
-  function cambiarColor(c) { color = c; marcarActivos(); repintar(); }
+  function cambiarColor(c) {
+    const ps = partesDe(prenda);
+    if (!ps) color = c;
+    else if (parteActiva === 'todo') { color = c; coloresParte[prenda] = {}; ps.forEach(x => coloresParte[prenda][x.id] = c); }
+    else (coloresParte[prenda] = coloresParte[prenda] || {})[parteActiva] = c;
+    marcarActivos(); aplicarColoresMateriales(); repintar();
+  }
 
   // ---------- arte ----------
   // Rasteriza el archivo a un PNG de tamaño controlado: así funciona igual con SVG (que a veces no
@@ -392,7 +414,7 @@
   // ---------- lienzo de textura (atlas) ----------
   function pintarLienzo() {
     const m = MODELOS[prenda], W = canvas.width, H = canvas.height, ppm = m.pxPorMetro;
-    ctx.fillStyle = color; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = partesDe(prenda) ? colorDe(prenda, 'frente') : color; ctx.fillRect(0, 0, W, H);
     Object.keys(m.lados).forEach(l => {
       const s = getSlot(prenda, l); if (!s) return;
       const c = m.lados[l].centro, w = s.cm / 100 * ppm, h = w * s.img.naturalHeight / s.img.naturalWidth;
@@ -414,7 +436,8 @@
     aplicando = true;
     try {
       const textura = await mv.createTexture(canvas.toDataURL('image/png'));
-      mv.model.materials.forEach(mat => mat.pbrMetallicRoughness.baseColorTexture.setTexture(textura));
+      const ps = partesDe(prenda), nomLienzo = ps ? (ps.find(x => x.tipo === 'lienzo') || {}).material : null;
+      mv.model.materials.forEach(mat => { if (nomLienzo && mat.name !== nomLienzo) return; mat.pbrMetallicRoughness.baseColorTexture.setTexture(textura); });
     } catch (e) { console.error('No se pudo aplicar la textura', e); setEstado('Error al aplicar la textura (ver consola)'); }
     aplicando = false;
     if (pendiente) { pendiente = false; aplicarTextura(); }
