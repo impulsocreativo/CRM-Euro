@@ -19,6 +19,7 @@
   model-viewer { width:100%; height:min(68vh,620px); min-height:380px; --poster-color:transparent; background:transparent; display:block; }
   .visor-barra { display:flex; gap:10px; justify-content:space-between; align-items:center; padding:10px 14px; border-top:1px solid var(--line); background:var(--surface); flex-wrap:wrap; }
   .visor-barra label { font-size:.85em; font-weight:700; display:flex; gap:8px; align-items:center; cursor:pointer; }
+  .credito { margin:0; padding:8px 14px 12px; font-size:.75em; color:var(--muted); background:var(--surface); line-height:1.4; } .credito a { color:var(--accent-strong); }
   .estado { position:absolute; left:14px; top:12px; font-size:.8em; color:var(--muted); font-weight:700; background:rgba(255,255,255,.8); padding:4px 10px; border-radius:999px; }
   .panel { display:flex; flex-direction:column; gap:14px; }
   .opciones { display:flex; flex-wrap:wrap; gap:8px; }
@@ -67,6 +68,7 @@
       <label><input type="checkbox" id="giro"> Giro automático</label>
       <span style="font-size:.8em;color:var(--muted);font-weight:700;">Arrastra para girar · pellizca o usa la rueda para acercar</span>
     </div>
+    <p class="credito" id="credito"></p>
   </div>
 
   <div class="panel">
@@ -156,6 +158,7 @@
     canvas.width = m.lienzo[0]; canvas.height = m.lienzo[1];
     await new Promise(res => { const f = () => { mv.removeEventListener('load', f); res(); }; mv.addEventListener('load', f); mv.src = 'assets/models/' + m.archivo; });
     cargada = true; $('btnCapturar').disabled = false; setEstado(m.nombre);
+    $('credito').innerHTML = m.creditoUrl ? `Modelo <a href="${m.creditoUrl}" target="_blank" rel="noopener">«T Shirt»</a> de ${m.creditoAutor}, licencia <a href="${m.licenciaUrl}" target="_blank" rel="noopener">${m.licencia}</a>. Simplificado y adaptado para CRM Euro.` : 'Modelo de prueba (sin textura real).';
     mv.cameraOrbit = m.lados.frente.camara; if (mv.jumpCameraToGoal) mv.jumpCameraToGoal();
     await repintar(true);
   }
