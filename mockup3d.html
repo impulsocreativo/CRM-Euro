@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup 3D · CRM Euro (prototipo)</title>
+<meta name="theme-color" content="#2E2420">
+<style>
+  :root { --bg:#FBF6EF; --surface:#fff; --surface-2:#FFF9F2; --line:#EFE3D4; --text:#3A2E2A; --muted:#8C7B70; --ink:#2E2420; --accent:#D9483B; --accent-strong:#BE3529; --accent-soft:#FDE7E3; --radius:18px; --radius-sm:12px; --shadow:0 2px 4px rgba(94,60,40,.04),0 8px 24px rgba(94,60,40,.07); }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:'Nunito',ui-rounded,'SF Pro Rounded','Segoe UI',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  header.top { display:flex; align-items:center; gap:12px; padding:16px 22px; }
+  header.top h1 { margin:0; font-family:'Fraunces',Georgia,serif; font-size:1.6em; color:var(--ink); font-weight:600; }
+  .pill { background:var(--accent-soft); color:var(--accent-strong); font-weight:800; font-size:.72em; padding:4px 12px; border-radius:999px; letter-spacing:.04em; text-transform:uppercase; }
+  .wrap { max-width:1200px; margin:0 auto; padding:0 22px 40px; display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:18px; align-items:start; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 20px; }
+  .card h3 { margin:0 0 12px; font-size:.95em; font-weight:800; color:var(--ink); }
+  .visor { padding:0; overflow:hidden; position:relative; background:radial-gradient(circle at 50% 35%,#fff 0%,#F6EDE2 100%); }
+  model-viewer { width:100%; height:min(68vh,620px); min-height:380px; --poster-color:transparent; background:transparent; display:block; }
+  .visor-barra { display:flex; gap:10px; justify-content:space-between; align-items:center; padding:10px 14px; border-top:1px solid var(--line); background:var(--surface); flex-wrap:wrap; }
+  .visor-barra label { font-size:.85em; font-weight:700; display:flex; gap:8px; align-items:center; cursor:pointer; }
+  .estado { position:absolute; left:14px; top:12px; font-size:.8em; color:var(--muted); font-weight:700; background:rgba(255,255,255,.8); padding:4px 10px; border-radius:999px; }
+  .panel { display:flex; flex-direction:column; gap:14px; }
+  .opciones { display:flex; flex-wrap:wrap; gap:8px; }
+  .opt { border:1.5px solid var(--line); background:var(--surface); color:var(--text); border-radius:999px; padding:9px 16px; font-weight:800; cursor:pointer; font-size:.9em; }
+  .opt:hover { border-color:var(--accent); color:var(--accent-strong); }
+  .opt.activo { background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:0 4px 12px rgba(217,72,59,.28); }
+  .colores { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  .sw { width:34px; height:34px; border-radius:50%; border:3px solid #fff; box-shadow:0 0 0 1.5px var(--line); cursor:pointer; padding:0; }
+  .sw.activo { box-shadow:0 0 0 3px var(--accent); }
+  input[type=color] { width:38px; height:38px; border:none; background:none; padding:0; cursor:pointer; }
+  .fila { display:grid; grid-template-columns:92px 1fr 52px; align-items:center; gap:8px; font-size:.85em; margin:8px 0; }
+  .fila span:first-child { font-weight:700; } .fila output { text-align:right; color:var(--muted); font-weight:700; }
+  input[type=range] { width:100%; accent-color:var(--accent); }
+  .btn { border:none; border-radius:999px; padding:12px 18px; font-weight:800; font-size:.95em; cursor:pointer; width:100%; }
+  .btn-principal { background:var(--accent); color:#fff; box-shadow:0 6px 16px rgba(217,72,59,.28); } .btn-principal:hover:not(:disabled) { background:var(--accent-strong); }
+  .btn-sec { background:var(--surface); color:var(--text); border:1.5px solid var(--line); } .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .ayuda { color:var(--muted); font-size:.82em; line-height:1.45; margin:8px 0 0; }
+  .vacio-arte { border:2px dashed var(--line); border-radius:var(--radius-sm); padding:14px; text-align:center; color:var(--muted); font-weight:700; font-size:.88em; cursor:pointer; display:block; }
+  .vacio-arte:hover { border-color:var(--accent); color:var(--accent-strong); }
+  .capturas { grid-column:1 / -1; }
+  .grid-cap { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; }
+  .cap { border:1px solid var(--line); border-radius:var(--radius-sm); overflow:hidden; background:var(--surface-2); }
+  .cap img { width:100%; display:block; background:#fff; } .cap div { padding:8px 10px; display:flex; justify-content:space-between; align-items:center; font-size:.82em; font-weight:800; }
+  .cap a { color:var(--accent-strong); text-decoration:none; }
+  .aviso { grid-column:1 / -1; background:#FFF1D6; border:1px solid #F6DDA5; color:#6E4A0A; border-radius:var(--radius); padding:16px 20px; display:none; line-height:1.5; }
+  .aviso code { background:rgba(0,0,0,.06); padding:2px 6px; border-radius:6px; font-size:.9em; word-break:break-all; }
+  details { grid-column:1 / -1; } summary { cursor:pointer; font-weight:800; color:var(--muted); font-size:.85em; }
+  #lienzo { width:100%; border:1px solid var(--line); border-radius:8px; margin-top:10px; background:#fff; }
+  @media (max-width:900px) { .wrap { grid-template-columns:1fr; padding:0 14px 40px; } model-viewer { height:56vh; min-height:320px; } }
+</style>
+</head>
+<body>
+<header class="top"><h1>Mockup 3D</h1><span class="pill">Prototipo</span></header>
+
+<div class="wrap">
+  <div class="aviso" id="avisoLibreria">
+    <strong>Falta guardar la librería 360° en esta carpeta.</strong><br>
+    1) Descarga <code>https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js</code> (código abierto, Apache 2.0).<br>
+    2) Guárdalo como <code>assets/vendor/model-viewer.min.js</code> junto a esta página y recarga.
+  </div>
+
+  <div class="card visor">
+    <span class="estado" id="estado">Cargando…</span>
+    <model-viewer id="mv" alt="Vista 360° de la prenda" camera-controls touch-action="pan-y" shadow-intensity="0.9" shadow-softness="1" exposure="1.05" interaction-prompt="none" camera-orbit="0deg 75deg 105%" min-camera-orbit="auto auto 60%" max-camera-orbit="auto auto 180%"></model-viewer>
+    <div class="visor-barra">
+      <label><input type="checkbox" id="giro"> Giro automático</label>
+      <span style="font-size:.8em;color:var(--muted);font-weight:700;">Arrastra para girar · pellizca o usa la rueda para acercar</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <section class="card"><h3>1 · Prenda</h3><div class="opciones" id="opsPrenda"></div></section>
+    <section class="card"><h3>2 · Color de la prenda</h3>
+      <div class="colores" id="colores"></div>
+    </section>
+    <section class="card"><h3>3 · Estampado o bordado</h3>
+      <div class="opciones" id="opsLado" style="margin-bottom:10px;"></div>
+      <label class="vacio-arte" id="zonaArte" for="archivoArte">📎 Subir arte (PNG con fondo transparente es lo ideal)</label>
+      <input type="file" id="archivoArte" accept="image/*" hidden>
+      <div id="controlesArte" style="display:none;">
+        <div class="fila"><span>Ancho (cm)</span><input type="range" id="rCm" min="4" max="45" step="0.5"><output id="oCm"></output></div>
+        <div class="fila"><span>Horizontal</span><input type="range" id="rX" min="-25" max="25" step="0.5"><output id="oX"></output></div>
+        <div class="fila"><span>Vertical</span><input type="range" id="rY" min="-30" max="30" step="0.5"><output id="oY"></output></div>
+        <div class="fila"><span>Giro</span><input type="range" id="rRot" min="-45" max="45" step="1"><output id="oRot"></output></div>
+        <button class="btn btn-sec" id="btnQuitar">Quitar arte de este lado</button>
+      </div>
+      <p class="ayuda" id="ayudaLado"></p>
+    </section>
+    <section class="card"><h3>4 · Guardar vistas</h3>
+      <button class="btn btn-principal" id="btnCapturar" disabled>📸 Capturar 4 vistas</button>
+      <p class="ayuda">Genera frente, ¾, lateral y espalda en imágenes listas para adjuntar al ticket como mockup.</p>
+    </section>
+  </div>
+
+  <section class="card capturas" id="seccionCapturas" style="display:none;">
+    <h3>Vistas capturadas</h3>
+    <div class="grid-cap" id="gridCap"></div>
+    <div style="margin-top:12px;max-width:260px;"><button class="btn btn-sec" id="btnTodas">⬇️ Descargar todas</button></div>
+  </section>
+
+  <details><summary>Ver lienzo de textura (para depurar)</summary><canvas id="lienzo"></canvas></details>
+</div>
+
+<script type="module" src="assets/vendor/model-viewer.min.js" onerror="window.__sinLib=true"></script>
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const mv = $('mv'), canvas = $('lienzo'), ctx = canvas.getContext('2d');
+  const COLORES = ['#FFFFFF','#111111','#1F2A44','#B3261E','#6B7280','#2F6F4F','#E8B931','#C9B79C'];
+  let MODELOS = {}, prenda = 'playera', lado = 'frente', color = '#FFFFFF';
+  const estado = {};            // estado[prenda][lado] = { img, cm, dx, dy, rot }
+  let cargada = false, pendiente = null, ultimasCapturas = [];
+
+  const setEstado = t => { $('estado').textContent = t; };
+  function getSlot(p = prenda, l = lado) { estado[p] = estado[p] || {}; return estado[p][l] || null; }
+
+  // ---------- arranque ----------
+  async function iniciar() {
+    // ¿hay librería? (módulo local; si no existe, avisamos con instrucciones claras)
+    const ok = await Promise.race([ customElements.whenDefined('model-viewer').then(() => true), new Promise(r => { const t0 = Date.now(), iv = setInterval(() => { if (window.__sinLib || Date.now() - t0 > 6000) { clearInterval(iv); r(false); } }, 150); }) ]);
+    if (!ok) { $('avisoLibreria').style.display = 'block'; setEstado('Falta la librería 360°'); }
+    try { MODELOS = await (await fetch('assets/models/modelos.json')).json(); }
+    catch (e) { setEstado('No se pudo leer assets/models/modelos.json (abre la página desde un servidor, no como archivo)'); return; }
+    construirUI();
+    if (ok) await elegirPrenda('playera');
+  }
+
+  function construirUI() {
+    $('opsPrenda').innerHTML = Object.keys(MODELOS).map(id => `<button class="opt" data-p="${id}">${MODELOS[id].nombre}</button>`).join('');
+    $('opsPrenda').onclick = e => { let b = e.target.closest('[data-p]'); if (b) elegirPrenda(b.dataset.p); };
+    $('colores').innerHTML = COLORES.map(c => `<button class="sw" data-c="${c}" style="background:${c}" aria-label="Color ${c}"></button>`).join('') + '<input type="color" id="colorLibre" value="#ffffff" aria-label="Otro color">';
+    $('colores').onclick = e => { let b = e.target.closest('[data-c]'); if (b) cambiarColor(b.dataset.c); };
+    $('colorLibre').oninput = e => cambiarColor(e.target.value);
+    $('opsLado').onclick = e => { let b = e.target.closest('[data-l]'); if (b) elegirLado(b.dataset.l); };
+    $('archivoArte').onchange = e => cargarArte(e.target.files[0]);
+    ['rCm','rX','rY','rRot'].forEach(id => $(id).oninput = () => leerControles());
+    $('btnQuitar').onclick = () => { if (estado[prenda]) delete estado[prenda][lado]; refrescarControles(); repintar(); };
+    $('giro').onchange = e => { mv.autoRotate = e.target.checked; if (e.target.checked) mv.setAttribute('auto-rotate', ''); else mv.removeAttribute('auto-rotate'); };
+    $('btnCapturar').onclick = capturar;
+    $('btnTodas').onclick = () => ultimasCapturas.forEach((c, i) => setTimeout(() => descargar(c.url, c.nombre), i * 350));
+    marcarActivos();
+  }
+
+  function marcarActivos() {
+    document.querySelectorAll('#opsPrenda .opt').forEach(b => b.classList.toggle('activo', b.dataset.p === prenda));
+    document.querySelectorAll('#colores .sw').forEach(b => b.classList.toggle('activo', b.dataset.c.toLowerCase() === color.toLowerCase()));
+    const lados = Object.keys(MODELOS[prenda] ? MODELOS[prenda].lados : {});
+    $('opsLado').innerHTML = lados.map(l => `<button class="opt ${l === lado ? 'activo' : ''}" data-l="${l}" style="text-transform:capitalize">${l}</button>`).join('');
+  }
+
+  async function elegirPrenda(id) {
+    prenda = id; lado = 'frente'; cargada = false; $('btnCapturar').disabled = true;
+    marcarActivos(); refrescarControles();
+    const m = MODELOS[id]; setEstado('Cargando ' + m.nombre.toLowerCase() + '…');
+    canvas.width = m.lienzo[0]; canvas.height = m.lienzo[1];
+    await new Promise(res => { const f = () => { mv.removeEventListener('load', f); res(); }; mv.addEventListener('load', f); mv.src = 'assets/models/' + m.archivo; });
+    cargada = true; $('btnCapturar').disabled = false; setEstado(m.nombre);
+    mv.cameraOrbit = m.lados.frente.camara; if (mv.jumpCameraToGoal) mv.jumpCameraToGoal();
+    await repintar(true);
+  }
+  function elegirLado(l) {
+    lado = l; marcarActivos(); refrescarControles();
+    const m = MODELOS[prenda]; if (m.lados[l] && m.lados[l].camara) { mv.cameraOrbit = m.lados[l].camara; }
+  }
+  function cambiarColor(c) { color = c; marcarActivos(); repintar(); }
+
+  // ---------- arte ----------
+  function cargarArte(file) {
+    if (!file) return;
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      estado[prenda] = estado[prenda] || {};
+      estado[prenda][lado] = { img, cm: 28, dx: 0, dy: 0, rot: 0 };
+      refrescarControles(); repintar();
+    };
+    img.src = url; $('archivoArte').value = '';
+  }
+  function refrescarControles() {
+    const s = getSlot(), m = MODELOS[prenda];
+    $('controlesArte').style.display = s ? 'block' : 'none';
+    $('zonaArte').textContent = s ? '🔁 Cambiar arte de este lado' : '📎 Subir arte (PNG con fondo transparente es lo ideal)';
+    $('ayudaLado').textContent = m && m.tipo === 'gorra' ? 'En gorras el arte se curva con la cúpula; los tamaños son aproximados en este prototipo.' : 'Lado actual: ' + lado + '. Cada lado guarda su propio arte.';
+    if (s) { $('rCm').value = s.cm; $('rX').value = s.dx; $('rY').value = s.dy; $('rRot').value = s.rot; etiquetas(); }
+  }
+  function etiquetas() { $('oCm').textContent = $('rCm').value + ' cm'; $('oX').textContent = $('rX').value + ' cm'; $('oY').textContent = $('rY').value + ' cm'; $('oRot').textContent = $('rRot').value + '°'; }
+  function leerControles() {
+    const s = getSlot(); if (!s) return;
+    s.cm = +$('rCm').value; s.dx = +$('rX').value; s.dy = +$('rY').value; s.rot = +$('rRot').value; etiquetas(); repintar();
+  }
+
+  // ---------- lienzo de textura (atlas) ----------
+  function pintarLienzo() {
+    const m = MODELOS[prenda], W = canvas.width, H = canvas.height, ppm = m.pxPorMetro;
+    ctx.fillStyle = color; ctx.fillRect(0, 0, W, H);
+    Object.keys(m.lados).forEach(l => {
+      const s = getSlot(prenda, l); if (!s) return;
+      const c = m.lados[l].centro, w = s.cm / 100 * ppm, h = w * s.img.naturalHeight / s.img.naturalWidth;
+      ctx.save(); ctx.translate(c[0] * W + s.dx / 100 * ppm, c[1] * H - s.dy / 100 * ppm); ctx.rotate(s.rot * Math.PI / 180);
+      ctx.drawImage(s.img, -w / 2, -h / 2, w, h); ctx.restore();
+    });
+  }
+
+  let temporizador = null, aplicando = false;
+  function repintar(inmediato) {
+    if (!MODELOS[prenda]) return Promise.resolve();
+    pintarLienzo();
+    clearTimeout(temporizador);
+    return new Promise(res => { temporizador = setTimeout(async () => { await aplicarTextura(); res(); }, inmediato ? 0 : 140); });
+  }
+  async function aplicarTextura() {
+    if (!cargada || !mv.model) return;
+    if (aplicando) { pendiente = true; return; }
+    aplicando = true;
+    try {
+      const textura = await mv.createTexture(canvas.toDataURL('image/png'));
+      mv.model.materials.forEach(mat => mat.pbrMetallicRoughness.baseColorTexture.setTexture(textura));
+    } catch (e) { console.error('No se pudo aplicar la textura', e); setEstado('Error al aplicar la textura (ver consola)'); }
+    aplicando = false;
+    if (pendiente) { pendiente = false; aplicarTextura(); }
+  }
+
+  // ---------- capturas ----------
+  const VISTAS = [['frente', '0deg 75deg 105%'], ['tres-cuartos', '35deg 72deg 105%'], ['lateral', '90deg 75deg 105%'], ['espalda', '180deg 75deg 105%']];
+  const espera = ms => new Promise(r => setTimeout(r, ms));
+  async function capturar() {
+    const b = $('btnCapturar'); b.disabled = true; b.textContent = 'Capturando…';
+    const giroAntes = mv.hasAttribute('auto-rotate'); mv.removeAttribute('auto-rotate');
+    const orbitaAntes = mv.cameraOrbit;
+    ultimasCapturas.forEach(c => URL.revokeObjectURL(c.url)); ultimasCapturas = [];
+    try {
+      for (const [nombre, orbita] of VISTAS) {
+        mv.cameraOrbit = orbita; if (mv.jumpCameraToGoal) mv.jumpCameraToGoal();
+        await espera(350);
+        const blob = await mv.toBlob({ mimeType: 'image/png', idealAspect: true });
+        ultimasCapturas.push({ url: URL.createObjectURL(blob), nombre: `mockup-${prenda}-${nombre}.png`, etiqueta: nombre });
+      }
+    } catch (e) { console.error(e); setEstado('No se pudieron capturar las vistas'); }
+    mv.cameraOrbit = orbitaAntes; if (giroAntes) mv.setAttribute('auto-rotate', '');
+    $('gridCap').innerHTML = ultimasCapturas.map(c => `<div class="cap"><img src="${c.url}" alt="${c.etiqueta}"><div><span style="text-transform:capitalize">${c.etiqueta.replace('-', ' ')}</span><a href="${c.url}" download="${c.nombre}">Descargar</a></div></div>`).join('');
+    $('seccionCapturas').style.display = ultimasCapturas.length ? 'block' : 'none';
+    b.disabled = false; b.textContent = '📸 Capturar 4 vistas';
+    if (ultimasCapturas.length) $('seccionCapturas').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  function descargar(url, nombre) { const a = document.createElement('a'); a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove(); }
+
+  iniciar();
+})();
+</script>
+</body>
+</html>
