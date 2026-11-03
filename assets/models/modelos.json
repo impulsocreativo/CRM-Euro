@@ -1,6 +1,6 @@
 {
  "playera": {
-  "nombre": "Playera",
+  "nombre": "Cuello redondo",
   "archivo": "playera.glb",
   "lienzo": [
    2048,
@@ -21,7 +21,38 @@
      0.2459,
      0.14
     ],
-    "camara": "0deg 78deg 105%"
+    "camara": "0deg 78deg 105%",
+    "etiqueta": "Frente · pecho grande"
+   },
+   "pecho izquierdo": {
+    "panel": [
+     0.1125,
+     0.3792,
+     0.0533,
+     0.4733
+    ],
+    "centro": [
+     0.3126,
+     0.11
+    ],
+    "cmDefecto": 9,
+    "camara": "0deg 80deg 80%",
+    "etiqueta": "Pecho izquierdo"
+   },
+   "pecho derecho": {
+    "panel": [
+     0.1125,
+     0.3792,
+     0.0533,
+     0.4733
+    ],
+    "centro": [
+     0.1792,
+     0.11
+    ],
+    "cmDefecto": 9,
+    "camara": "0deg 80deg 80%",
+    "etiqueta": "Pecho derecho"
    },
    "espalda": {
     "panel": [
@@ -65,7 +96,8 @@
     "camara": "-90deg 80deg 80%"
    }
   },
-  "v": "2-mangas"
+  "v": "2-mangas",
+  "categoria": "Playeras"
  },
  "manga_larga": {
   "nombre": "Manga larga",
@@ -95,7 +127,38 @@
      0.1621
     ],
     "cmDefecto": 28,
-    "camara": "0deg 78deg 105%"
+    "camara": "0deg 78deg 105%",
+    "etiqueta": "Frente · pecho grande"
+   },
+   "pecho izquierdo": {
+    "panel": [
+     0.1121,
+     0.3882,
+     0.0439,
+     0.4686
+    ],
+    "centro": [
+     0.313,
+     0.1339
+    ],
+    "cmDefecto": 9,
+    "camara": "0deg 80deg 80%",
+    "etiqueta": "Pecho izquierdo"
+   },
+   "pecho derecho": {
+    "panel": [
+     0.1121,
+     0.3882,
+     0.0439,
+     0.4686
+    ],
+    "centro": [
+     0.1874,
+     0.1339
+    ],
+    "cmDefecto": 9,
+    "camara": "0deg 80deg 80%",
+    "etiqueta": "Pecho derecho"
    },
    "espalda": {
     "panel": [
@@ -139,10 +202,122 @@
     "cmDefecto": 8,
     "camara": "-90deg 80deg 80%"
    }
-  }
+  },
+  "categoria": "Playeras"
+ },
+ "polo": {
+  "nombre": "Polo",
+  "archivo": "polo.glb",
+  "lienzo": [
+   2048,
+   2048
+  ],
+  "pxPorMetro": 1351.8,
+  "tipo": "plana",
+  "v": "1",
+  "credito": "Modelo «Short Sleeve Polo» de chokybali (CC BY 4.0), simplificado para CRM Euro",
+  "creditoUrl": "https://sketchfab.com/3d-models/short-sleeve-polo-59efcd191be44cf88b4578c93d144124",
+  "creditoAutor": "chokybali",
+  "licencia": "CC BY 4.0",
+  "licenciaUrl": "http://creativecommons.org/licenses/by/4.0/",
+  "lados": {
+   "frente": {
+    "panel": [
+     0.1048,
+     0.3952,
+     0.0462,
+     0.467
+    ],
+    "centro": [
+     0.25,
+     0.1841
+    ],
+    "cmDefecto": 28,
+    "camara": "0deg 78deg 105%",
+    "etiqueta": "Frente · pecho grande"
+   },
+   "pecho izquierdo": {
+    "panel": [
+     0.1048,
+     0.3952,
+     0.0462,
+     0.467
+    ],
+    "centro": [
+     0.316,
+     0.1544
+    ],
+    "cmDefecto": 9,
+    "camara": "0deg 80deg 80%",
+    "etiqueta": "Pecho izquierdo"
+   },
+   "pecho derecho": {
+    "panel": [
+     0.1048,
+     0.3952,
+     0.0462,
+     0.467
+    ],
+    "centro": [
+     0.184,
+     0.1544
+    ],
+    "cmDefecto": 9,
+    "camara": "0deg 80deg 80%",
+    "etiqueta": "Pecho derecho"
+   },
+   "espalda": {
+    "panel": [
+     0.6048,
+     0.8952,
+     0.0462,
+     0.467
+    ],
+    "centro": [
+     0.75,
+     0.1841
+    ],
+    "cmDefecto": 28,
+    "camara": "180deg 78deg 105%"
+   },
+   "manga izquierda": {
+    "panel": [
+     0.02,
+     0.48,
+     0.52,
+     0.98
+    ],
+    "centro": [
+     0.25,
+     0.75
+    ],
+    "cmDefecto": 8,
+    "camara": "90deg 80deg 80%"
+   },
+   "manga derecha": {
+    "panel": [
+     0.52,
+     0.98,
+     0.52,
+     0.98
+    ],
+    "centro": [
+     0.75,
+     0.75
+    ],
+    "cmDefecto": 8,
+    "camara": "-90deg 80deg 80%"
+   }
+  },
+  "categoria": "Playeras"
+ },
+ "playera_v": {
+  "categoria": "Playeras",
+  "nombre": "Cuello V",
+  "proximamente": true
  },
  "sudadera": {
-  "nombre": "Sudadera",
+  "nombre": "Hoodie con capucha",
   "archivo": "sudadera.glb",
   "lienzo": [
    2048,
@@ -169,7 +344,38 @@
      0.2261
     ],
     "cmDefecto": 24,
-    "camara": "0deg 78deg 105%"
+    "camara": "0deg 78deg 105%",
+    "etiqueta": "Frente · pecho grande"
+   },
+   "pecho izquierdo": {
+    "panel": [
+     0.1191,
+     0.3814,
+     0.0417,
+     0.4702
+    ],
+    "centro": [
+     0.3098,
+     0.1993
+    ],
+    "cmDefecto": 8,
+    "camara": "0deg 80deg 80%",
+    "etiqueta": "Pecho izquierdo"
+   },
+   "pecho derecho": {
+    "panel": [
+     0.1191,
+     0.3814,
+     0.0417,
+     0.4702
+    ],
+    "centro": [
+     0.1906,
+     0.1993
+    ],
+    "cmDefecto": 8,
+    "camara": "0deg 80deg 80%",
+    "etiqueta": "Pecho derecho"
    },
    "espalda": {
     "panel": [
@@ -213,18 +419,19 @@
     "cmDefecto": 8,
     "camara": "-90deg 80deg 80%"
    }
-  }
+  },
+  "categoria": "Sudaderas"
  },
- "gorra": {
-  "nombre": "Gorra",
-  "archivo": "gorra.glb",
+ "gorra_trucker": {
+  "nombre": "Trucker",
+  "archivo": "gorra_trucker.glb",
   "lienzo": [
    1024,
    1024
   ],
   "pxPorMetro": 3413.3,
   "tipo": "gorra",
-  "v": "3",
+  "v": "1",
   "credito": "Modelo «Trucker Hat» de matheus pedreira (CC BY 4.0), sin logos y con partes separadas para CRM Euro",
   "creditoUrl": "https://sketchfab.com/3d-models/trucker-hat-dbb5b0e0418540328423c616049c0f64",
   "creditoAutor": "matheus pedreira",
@@ -263,8 +470,86 @@
      0.5
     ],
     "cmDefecto": 7,
-    "camara": "0deg 80deg 85%"
+    "camara": "0deg 80deg 85%",
+    "etiqueta": "Frente"
    }
-  }
+  },
+  "categoria": "Gorras"
+ },
+ "gorra_cerrada": {
+  "nombre": "Cerrada",
+  "archivo": "gorra_cerrada.glb",
+  "lienzo": [
+   2048,
+   2048
+  ],
+  "pxPorMetro": 3413.3,
+  "tipo": "gorra",
+  "v": "1",
+  "credito": "Modelo «Baseball Cap» de jomalon (CC BY 4.0), simplificado para CRM Euro",
+  "creditoUrl": "https://sketchfab.com/3d-models/baseball-cap-75d11d363e1c4884a714a776049ea4a0",
+  "creditoAutor": "jomalon",
+  "licencia": "CC BY 4.0",
+  "licenciaUrl": "http://creativecommons.org/licenses/by/4.0/",
+  "lados": {
+   "frente": {
+    "panel": [
+     0.12,
+     0.38,
+     0.08,
+     0.42
+    ],
+    "centro": [
+     0.25,
+     0.2663
+    ],
+    "cmDefecto": 7,
+    "camara": "0deg 80deg 85%",
+    "etiqueta": "Frente"
+   },
+   "lateral izquierdo": {
+    "panel": [
+     0.55,
+     0.95,
+     0.55,
+     0.95
+    ],
+    "centro": [
+     0.75,
+     0.7663
+    ],
+    "cmDefecto": 4,
+    "camara": "90deg 80deg 85%"
+   },
+   "lateral derecho": {
+    "panel": [
+     0.05,
+     0.45,
+     0.55,
+     0.95
+    ],
+    "centro": [
+     0.25,
+     0.7663
+    ],
+    "cmDefecto": 4,
+    "camara": "-90deg 80deg 85%"
+   },
+   "trasera": {
+    "panel": [
+     0.62,
+     0.88,
+     0.08,
+     0.42
+    ],
+    "centro": [
+     0.75,
+     0.2663
+    ],
+    "cmDefecto": 5,
+    "camara": "180deg 80deg 85%"
+   }
+  },
+  "categoria": "Gorras"
  }
 }
