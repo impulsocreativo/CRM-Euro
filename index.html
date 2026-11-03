@@ -468,6 +468,109 @@
     body.modo-oscuro input, body.modo-oscuro select, body.modo-oscuro textarea { background-color: var(--surface-2); color: var(--text-main); border-color: var(--line); }
     body.modo-oscuro .btn-icon { background-color: transparent !important; }
     body.modo-oscuro .badge { filter: brightness(.95) saturate(1.1); }
+
+    /* ---- Vista de detalle del ticket ---- */
+    #detalleTicketOverlay { display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 260px; background: var(--bg-body); z-index: 850; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .dt-wrap { max-width: 1100px; margin: 0 auto; padding: 22px 28px 40px; }
+    .dt-volver { background: none; border: none; color: var(--muted); font-weight: 800; font-size: .95em; cursor: pointer; padding: 6px 4px; margin-bottom: 8px; }
+    .dt-volver:hover { color: var(--accent-strong); }
+    .dt-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 18px; padding: 16px 22px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .dt-head.prioridad-urgente, .dt-head.prioridad-bomberazo, .dt-head.prioridad-atiempo { border-radius: var(--radius); }
+    .dt-head-titulo { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .dt-head-ico { font-size: 1.8em; }
+    .dt-head h2 { margin: 0; font-size: 1.3em; color: var(--ink); line-height: 1.25; overflow-wrap: anywhere; }
+    .dt-head-sub { color: var(--muted); font-size: .88em; font-weight: 700; margin-top: 2px; }
+    .dt-head-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+    .dt-chip { padding: 5px 13px; border-radius: 999px; font-size: .78em; font-weight: 800; letter-spacing: .02em; white-space: nowrap; }
+    .dt-chip-bomberazo { background: #F9D2CC; color: #A52A1C; } .dt-chip-urgente { background: #FCE3B8; color: #8A5B0B; } .dt-chip-atiempo { background: #D8EFE2; color: #256B46; }
+    .dt-entrega { font-size: .88em; color: var(--text-main); padding-left: 12px; border-left: 2px solid var(--line); white-space: nowrap; }
+
+    .dt-pasos { margin: 18px 0 6px; padding: 0 6px; }
+    .dt-stepper { list-style: none; margin: 0; padding: 0; display: flex; }
+    .dt-paso { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; font-size: .85em; font-weight: 700; color: var(--muted); }
+    .dt-paso::before { content: ''; position: absolute; top: 13px; right: 50%; width: 100%; height: 3px; background: var(--line); }
+    .dt-paso:first-child::before { display: none; }
+    .dt-paso-hecho::before, .dt-paso-actual::before { background: var(--ok); }
+    .dt-punto { position: relative; z-index: 1; width: 28px; height: 28px; border-radius: 50%; background: var(--surface); border: 3px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: .8em; color: #fff; }
+    .dt-paso-hecho .dt-punto { background: var(--ok); border-color: var(--ok); }
+    .dt-paso-actual .dt-punto { border-color: var(--ink); box-shadow: 0 0 0 5px rgba(46,36,32,.12); background: var(--surface); }
+    .dt-paso-actual .dt-paso-nombre { color: var(--ink); font-weight: 800; }
+    .dt-paso-hecho .dt-paso-nombre { color: var(--text-main); }
+    .dt-paso-sub { font-size: .75em; color: var(--accent-strong); font-weight: 800; }
+    .dt-paso-movil { display: none; }
+
+    .dt-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; margin-top: 14px; }
+    .dt-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+    .dt-side { position: sticky; top: 14px; }
+    .dt-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 20px; }
+    .dt-card-titulo { margin: 0 0 14px; font-family: var(--font-body); font-size: 1.05em; font-weight: 800; color: var(--ink); display: flex; align-items: center; gap: 10px; }
+    .dt-ico { width: 30px; height: 30px; border-radius: 10px; background: var(--accent-soft); display: inline-flex; align-items: center; justify-content: center; font-size: .9em; }
+    .dt-ico-accion { background: var(--accent); color: #fff; border-radius: 50%; }
+    .dt-datos { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 14px 18px; }
+    .dt-dato span { display: block; font-size: .72em; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+    .dt-dato strong { font-size: 1.05em; color: var(--ink); overflow-wrap: anywhere; }
+    .dt-nota p { margin: 0; white-space: pre-wrap; line-height: 1.5; }
+    .dt-archivos { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .dt-archivos.dt-una-col { grid-template-columns: 1fr; }
+    .dt-archivos-col h4 { margin: 0 0 8px; font-size: .88em; color: var(--text-main); }
+    .dt-cuenta { color: var(--muted); font-weight: 700; margin-left: 4px; }
+    .dt-archivos .gallery-images { margin-bottom: 4px; padding: 4px 2px 8px; }
+    .dt-vacio { border: 2px dashed var(--line); border-radius: var(--radius-sm); padding: 22px 12px; text-align: center; color: var(--muted); font-size: .9em; font-weight: 700; }
+    .dt-vacio-ico { display: block; font-size: 1.6em; margin-bottom: 4px; }
+    .dt-pie { font-size: .8em; color: var(--muted); font-style: italic; margin: 4px 0 0; }
+    .dt-eventos { list-style: none; margin: 0; padding: 0 0 0 4px; position: relative; }
+    .dt-ev { position: relative; padding: 0 0 14px 22px; }
+    .dt-ev::before { content: ''; position: absolute; left: 5px; top: 14px; bottom: 0; width: 2px; background: var(--line); }
+    .dt-ev:last-child::before { display: none; }
+    .dt-ev-punto { position: absolute; left: 0; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); }
+    .dt-ev-sistema .dt-ev-punto { background: var(--euro-light-gray); }
+    .dt-ev-meta { font-size: .8em; color: var(--muted); } .dt-ev-meta strong { color: var(--text-main); }
+    .dt-ev-msg { font-size: .93em; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .dt-ev-sistema .dt-ev-msg { color: var(--muted); font-style: italic; }
+    .dt-ev a { color: var(--accent-strong); font-weight: 700; }
+    .dt-extra { display: none; } .dt-todo .dt-extra { display: block; }
+    .dt-link { background: none; border: none; color: var(--accent-strong); font-weight: 800; cursor: pointer; padding: 4px 0; font-size: .9em; }
+    .dt-muted { color: var(--muted); margin: 0; }
+
+    .dt-resp-chip { display: inline-block; padding: 8px 16px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-strong); font-weight: 800; font-size: .85em; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 14px; }
+    .dt-btn-principal { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 999px; padding: 15px 18px; background: var(--accent); color: #fff; font-weight: 800; font-size: 1.05em; cursor: pointer; box-shadow: 0 8px 20px rgba(217,72,59,.32); }
+    .dt-btn-principal:hover:not(:disabled) { background: var(--accent-strong); }
+    .dt-btn-principal:disabled { background: var(--line); color: var(--muted); box-shadow: none; cursor: not-allowed; }
+    .dt-ayuda { color: var(--muted); font-size: .9em; line-height: 1.45; margin: 12px 0 14px; }
+    .dt-meta { border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .dt-meta span { display: block; font-size: .75em; color: var(--muted); font-weight: 700; } .dt-meta strong { color: var(--ink); }
+    .dt-sticky { display: none; }
+
+    .dt-acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+    .dt-sec { background: var(--surface); border: 1.5px solid var(--line); color: var(--text-main); border-radius: 999px; padding: 10px 18px; font-weight: 700; font-size: .9em; cursor: pointer; }
+    .dt-sec:hover { border-color: var(--accent); color: var(--accent-strong); }
+    .dt-sec-mas { padding: 10px 16px; font-size: 1.1em; line-height: 1; }
+    .dt-mas { position: relative; }
+    .dt-menu { display: none; position: absolute; right: 0; bottom: calc(100% + 8px); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: var(--shadow-hover); min-width: 190px; overflow: hidden; z-index: 5; }
+    .dt-menu.abierto { display: block; }
+    .dt-menu button { width: 100%; text-align: left; background: none; border: none; padding: 12px 16px; font-weight: 700; color: #C0392B; cursor: pointer; }
+    .dt-menu button:hover { background: var(--accent-soft); }
+
+    .ticket-card-accion { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .ticket-card-header { cursor: pointer; }
+
+    @media (max-width: 768px) {
+      #detalleTicketOverlay { left: 0; top: 65px; }
+      .dt-wrap { padding: 14px 14px 110px; }
+      .dt-head { padding: 14px 16px; } .dt-head h2 { font-size: 1.12em; }
+      .dt-entrega { border-left: none; padding-left: 0; }
+      .dt-stepper { display: none; }
+      .dt-paso-movil { display: block; text-align: center; color: var(--muted); font-size: .9em; padding: 6px 0 2px; }
+      .dt-paso-movil::after { content: ''; display: block; height: 6px; margin-top: 8px; border-radius: 999px; background: linear-gradient(90deg, var(--ok) 0 var(--p, 50%), var(--line) var(--p, 50%) 100%); }
+      .dt-grid { grid-template-columns: 1fr; }
+      .dt-side { position: static; order: -1; }
+      .dt-btn-escritorio { display: none; }
+      .dt-sticky { display: block; position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, transparent, var(--bg-body) 30%); z-index: 860; }
+      .dt-archivos { grid-template-columns: 1fr; }
+      .dt-acciones { justify-content: stretch; } .dt-sec { flex: 1; padding: 10px 8px; font-size: .82em; } .dt-sec-mas { flex: 0 0 auto; }
+    }
+    body.modo-oscuro .dt-head, body.modo-oscuro .dt-card { background: var(--surface); border-color: var(--line); }
+    body.modo-oscuro .dt-chip-bomberazo { background: #4A2420; color: #FFB4A8; } body.modo-oscuro .dt-chip-urgente { background: #4A3820; color: #FFD79A; } body.modo-oscuro .dt-chip-atiempo { background: #21382B; color: #A5E0BE; }
   </style>
   <!-- Firebase (solo para notificaciones push; firebaseConfig no es secreto) -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
@@ -2157,6 +2260,8 @@ var qrcode = function() {
     </div>
   </div>
 
+  <div id="detalleTicketOverlay"><div class="dt-wrap" id="detalleTicketCont"></div></div>
+
   <!-- LIGHTBOX propio para ver fotos en pantalla completa (reemplaza el ícono de "pop out"
        de la vista previa de Drive, que en móvil se pierde muy fácil) -->
   <div class="modal-overlay" id="modalLightbox" style="z-index:4000; background:rgba(0,0,0,0.92); flex-direction:column;">
@@ -2244,7 +2349,7 @@ var qrcode = function() {
     // 10 minutos como respaldo. IMPORTANTE: sube esta constante cada vez que
     // subas cambios importantes, si no, esto no detecta nada nuevo.
     // =========================================================================
-    const APP_VERSION = "2026-10-31-01";
+    const APP_VERSION = "2026-11-02-01";
 
     async function revisarActualizacionDisponible() {
       try {
@@ -2459,6 +2564,7 @@ var qrcode = function() {
     }
 
     function cambiarVista(vista) {
+      cerrarDetalleTicket();
       document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active-view'));
       document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
       
@@ -2632,6 +2738,7 @@ var qrcode = function() {
     }
 
     function cerrarSesion() {
+      cerrarDetalleTicket();
       sesionActual = null;
       SesionStore.borrar();
       document.getElementById('appScreen').style.display = 'none';
@@ -2769,9 +2876,9 @@ var qrcode = function() {
       let hoy = new Date(); hoy.setHours(0,0,0,0);
       let entrega = new Date(t.fechaEntrega); entrega.setMinutes(entrega.getMinutes() + entrega.getTimezoneOffset()); entrega.setHours(0,0,0,0);
       let dias = Math.round((entrega - hoy) / (1000 * 60 * 60 * 24));
-      if (dias <= 0) return { nivel: 'bomberazo', icono: '🔥', etiqueta: dias < 0 ? 'Vencido' : 'Bomberazo' };
-      if (dias <= 2) return { nivel: 'urgente', icono: '⚠️', etiqueta: 'Urgente' };
-      return { nivel: 'atiempo', icono: '🟢', etiqueta: 'A tiempo' };
+      if (dias <= 0) return { nivel: 'bomberazo', icono: '🔥', dias: dias, etiqueta: dias < 0 ? 'Vencido' : 'Bomberazo' };
+      if (dias <= 2) return { nivel: 'urgente', icono: '⚠️', dias: dias, etiqueta: 'Urgente' };
+      return { nivel: 'atiempo', icono: '🟢', dias: dias, etiqueta: 'A tiempo' };
     }
 
     // =========================================================================
@@ -2847,7 +2954,7 @@ var qrcode = function() {
               <div class="movimiento-swipe-accion">${botonMobile}</div>
               ${botonEliminarSwipe}
               <div class="movimiento-item ${claseCard}" data-id="${ticket.id}">
-                <div class="movimiento-info" onclick="toggleDetalleMovimiento('${ticket.id}')" style="cursor:pointer;" title="Toca para ver detalle">
+                <div class="movimiento-info" onclick="abrirDetalleTicket('${ticket.id}')" style="cursor:pointer;" title="Ver ticket">
                   <div class="mov-top">${iconoTicket} ${ticket.id} · ${infoCliente}</div>
                   <div class="mov-producto">${ticket.productoTecnica}</div>
                 </div>
@@ -2858,18 +2965,234 @@ var qrcode = function() {
                 </div>
               </div>
             </div>
-            <div class="movimiento-detalle" id="detalle-${ticket.id}" style="display:none;">
-              ${construirDetalleTicket(ticket)}
-              <div style="text-align:right;">
-                <button class="btn-icon" style="border:1px solid #ddd; border-radius:8px; padding:8px 14px;" onclick="abrirModalEtiqueta('${ticket.id}')">🏷️ Etiqueta / QR</button>
-              </div>
-            </div>
           </div>
         `;
       });
       contenedor.innerHTML = html;
       habilitarSwipeMovimientos();
     }
+
+    // =========================================================================
+    // VISTA DE DETALLE DEL TICKET (pantalla propia, web y móvil)
+    // =========================================================================
+    const esc_ = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    function linkificar_(s) { return esc_(s).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">abrir enlace</a>'); }
+    function fmtFecha_(d) { return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }).replace('.', ''); }
+    function fmtFechaEntrega_(t) {
+      if (!t.fechaEntrega) return '';
+      let d = new Date(t.fechaEntrega); d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
+      return fmtFecha_(d).toUpperCase();
+    }
+
+    // Etapas según el tipo de pedido: Taller con diseño, Taller "sin diseño" y Maquila.
+    function etapasTicket_(t) {
+      let e = t.estatus || '', pasos, actual, sub = null;
+      if (t.destino === 'Maquila') {
+        pasos = ['Recepción', 'Bordado', 'Recolección', 'En tienda', 'Entregado'];
+        actual = e === 'Entregado' ? 4 : e === 'Terminado' ? 3 : e === 'Terminado Pendiente de Recolección' ? 2 : 1;
+      } else {
+        let sin = t.sinDiseno === true;
+        pasos = sin ? ['Recepción', 'Producción', 'Terminado', 'Entregado'] : ['Recepción', 'Diseño', 'Producción', 'Terminado', 'Entregado'];
+        if (e === 'Entregado') actual = pasos.length - 1;
+        else if (e === 'Terminado') actual = pasos.length - 2;
+        else if (e === 'Listo para Producción') actual = sin ? 1 : 2;
+        else { actual = 1; if (e.indexOf('Mockup') === 0) sub = 'Esperando al cliente'; }
+      }
+      return { pasos: pasos, actual: actual, sub: sub, completo: e === 'Entregado' };
+    }
+
+    function responsableTicket_(t) {
+      let e = t.estatus || '';
+      if (e === 'Entregado') return 'Finalizado';
+      if (e === 'Nuevo / Pendiente Bordado') return 'Bordados';
+      if (e === 'Terminado Pendiente de Recolección' || e === 'Terminado') return 'Vendedor';
+      if (e.indexOf('Mockup') === 0) return 'Vendedor · cliente';
+      if (e === 'Listo para Producción') return 'Jefe de Taller';
+      return 'Diseñador';
+    }
+
+    // Mismas reglas que accionRapidaBadge, pero devolviendo texto/ayuda para mostrarlos.
+    function pasoSiguiente_(t) {
+      let rol = sesionActual.rol, e = t.estatus;
+      let esVA = (rol === 'Vendedor' || rol === 'Administrador');
+      let bordPend = (t.destino === 'Maquila' && e === 'Nuevo / Pendiente Bordado');
+      let recol = (e === 'Terminado Pendiente de Recolección');
+      let esp = (e === 'Mockup Enviado - Esperando Aprobación');
+      if (bordPend && rol === 'Bordados') return { ok: true, icono: '🧵', texto: 'Terminar bordado', ayuda: 'Sube la foto de control de calidad y márcalo como terminado.' };
+      if (recol && esVA) return { ok: true, icono: '📥', texto: 'Recibir en tienda', ayuda: 'Confirma que el pedido ya llegó de Maquila.' };
+      if (e === 'Terminado' && esVA) return { ok: true, icono: '📦', texto: 'Entregar al cliente', ayuda: 'Registra la entrega del pedido al cliente.' };
+      if (esp && esVA) return { ok: true, icono: '🖼️', texto: 'Revisar mockup', ayuda: 'Confirma si el cliente aprobó el mockup o pidió cambios.' };
+      if (esp) return { ok: false, icono: '⏳', texto: 'Esperando al cliente', ayuda: 'El vendedor confirmará la respuesta del cliente.' };
+      if (t.destino === 'Maquila' && (bordPend || recol) && (rol === 'Diseñador' || rol === 'Jefe de Taller')) return { ok: false, icono: '🔒', texto: 'Solo lectura', ayuda: 'Este pedido va por Maquila.' };
+      if (e === 'Entregado') return { ok: false, icono: '✅', texto: 'Finalizado', ayuda: 'Este pedido ya fue entregado al cliente.' };
+      if (rol === 'Jefe de Taller') {
+        if (e === 'Terminado') return { ok: false, icono: '✅', texto: 'Terminado', ayuda: 'La producción ya quedó lista.' };
+        return { ok: true, icono: '✅', texto: 'Marcar terminado', ayuda: 'Confirma que la producción quedó lista.' };
+      }
+      if (rol === 'Diseñador' || rol === 'Administrador') {
+        if (e === 'Nuevo / Pendiente Diseño') return { ok: true, icono: '🎨', texto: 'Gestionar diseño', ayuda: 'Revisa las referencias, adjunta el mockup y actualiza el destino.' };
+        return { ok: true, icono: '⚙️', texto: 'Gestionar ticket', ayuda: 'Actualiza archivos, notas o el estatus del pedido.' };
+      }
+      if (rol === 'Vendedor') return { ok: true, icono: '✏️', texto: 'Editar ticket', ayuda: 'Actualiza datos, notas o archivos del pedido.' };
+      return { ok: false, icono: '⏳', texto: 'Esperando a ' + responsableTicket_(t), ayuda: 'Por ahora no tienes acciones en este pedido.' };
+    }
+
+    function chipUrgencia_(t) {
+      let p = calcularPrioridad(t); if (!p) return '';
+      let d = p.dias, txt;
+      if (p.nivel === 'bomberazo') txt = d < 0 ? 'VENCIDO · ' + (-d) + (d === -1 ? ' día' : ' días') : 'BOMBERAZO · hoy';
+      else if (p.nivel === 'urgente') txt = 'URGENTE · ' + d + (d === 1 ? ' día' : ' días');
+      else txt = 'A TIEMPO · ' + d + ' días';
+      return '<span class="dt-chip dt-chip-' + p.nivel + '">' + txt + '</span>';
+    }
+
+    function construirPasos_(t) {
+      let et = etapasTicket_(t);
+      let html = '<ol class="dt-stepper" aria-label="Avance del pedido">';
+      et.pasos.forEach(function(nombre, i) {
+        let est = (et.completo || i < et.actual) ? 'hecho' : (i === et.actual ? 'actual' : 'pendiente');
+        html += '<li class="dt-paso dt-paso-' + est + '"><span class="dt-punto">' + (est === 'hecho' ? '✓' : '') + '</span><span class="dt-paso-nombre">' + nombre + '</span>' +
+                (est === 'actual' && et.sub ? '<span class="dt-paso-sub">' + et.sub + '</span>' : '') + '</li>';
+      });
+      let pct = et.completo ? 100 : Math.round((et.actual + 1) / et.pasos.length * 100);
+      return html + '</ol><div class="dt-paso-movil" style="--p:' + pct + '%">Paso ' + (et.completo ? et.pasos.length : et.actual + 1) + ' de ' + et.pasos.length + ' · <strong>' + et.pasos[Math.min(et.actual, et.pasos.length - 1)] + '</strong></div>';
+    }
+
+    function construirArchivosDetalle_(t) {
+      let esJefe = sesionActual.rol === 'Jefe de Taller';
+      let mostrarRef = !esJefe || t.sinDiseno === true;
+      let refs = t.urlImagen ? t.urlImagen.split('\n').filter(l => l.trim() !== '') : [];
+      let urlsMock = [], pies = [];
+      if (t.urlMockup) t.urlMockup.split('\n').forEach(function(l) {
+        if (l.trim() === '') return;
+        if (l.indexOf('---') !== -1) pies.push(l.replace(/-{2,}/g, '').trim()); else urlsMock.push(l);
+      });
+      let vacioRef = '<div class="dt-vacio">Sin imágenes de referencia.</div>';
+      let vacioMock = '<div class="dt-vacio"><span class="dt-vacio-ico">☁️</span>Aún no hay archivos de diseño</div>';
+      let colRef = mostrarRef ? '<div class="dt-archivos-col"><h4>Referencias del vendedor <span class="dt-cuenta">' + (refs.length || '') + '</span></h4>' +
+        (refs.length ? '<div class="gallery-images">' + construirGaleria_(refs) + '</div>' : vacioRef) + '</div>' : '';
+      let colMock = '<div class="dt-archivos-col"><h4>Mockups / archivos finales <span class="dt-cuenta">' + (urlsMock.length || '') + '</span></h4>' +
+        (urlsMock.length ? '<div class="gallery-images">' + construirGaleria_(urlsMock) + '</div>' : vacioMock) +
+        (pies.length ? '<p class="dt-pie">' + esc_(pies.join(' · ')) + '</p>' : '') + '</div>';
+      return '<section class="dt-card"><h3 class="dt-card-titulo"><span class="dt-ico">📎</span>Archivos del ticket</h3><div class="dt-archivos' + (mostrarRef ? '' : ' dt-una-col') + '">' + colRef + colMock + '</div></section>';
+    }
+
+    function construirActividad_(t) {
+      let eventos = parsearNotas_(t.notasVendedor).concat(parsearNotas_(t.notasDisenador));
+      eventos.sort((a, b) => fechaTextoAOrden_(a.fechaTexto) - fechaTextoAOrden_(b.fechaTexto));
+      let cuerpo;
+      if (eventos.length === 0) cuerpo = '<p class="dt-muted">Sin historial todavía.</p>';
+      else {
+        let items = eventos.map(function(ev, i) {
+          let sis = ev.autor === 'Sistema';
+          let oculto = (eventos.length > 3 && i < eventos.length - 3) ? ' dt-extra' : '';
+          return '<li class="dt-ev' + (sis ? ' dt-ev-sistema' : '') + oculto + '"><span class="dt-ev-punto"></span><div class="dt-ev-meta"><strong>' + esc_(ev.autor) + '</strong> · ' + esc_(ev.fechaTexto.slice(0, 16)) + '</div><div class="dt-ev-msg">' + linkificar_(ev.mensaje) + '</div></li>';
+        }).join('');
+        cuerpo = '<ul class="dt-eventos" id="dtEventos">' + items + '</ul>' +
+          (eventos.length > 3 ? '<button class="dt-link" onclick="document.getElementById(\'dtEventos\').classList.toggle(\'dt-todo\'); this.innerText = document.getElementById(\'dtEventos\').classList.contains(\'dt-todo\') ? \'Mostrar menos\' : \'Ver historial completo (' + eventos.length + ')\'">Ver historial completo (' + eventos.length + ')</button>' : '');
+      }
+      return '<section class="dt-card"><h3 class="dt-card-titulo"><span class="dt-ico">🕘</span>Actividad reciente</h3>' + cuerpo + '</section>';
+    }
+
+    function notaOriginalVendedor_(t) {
+      if (!t.notasVendedor) return '';
+      let bloques = t.notasVendedor.split('\n\n').filter(b => b.trim() !== '' && !/^\[[\d\/: ]+ - [^\]]+\]:/.test(b));
+      return bloques.join('\n\n').trim();
+    }
+
+    function construirVistaDetalle_(t) {
+      let prio = calcularPrioridad(t);
+      let claseHead = prio ? 'prioridad-' + prio.nivel : '';
+      let icono = prio ? prio.icono : '🎫';
+      let paso = pasoSiguiente_(t);
+      let entrega = fmtFechaEntrega_(t);
+      let ingreso = t.fechaIngreso ? fmtFecha_(new Date(t.fechaIngreso)) : '—';
+      let ultima = t.fechaUltimaActualizacion ? (function(d) { return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }).replace('.', '') + ' · ' + d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false }); })(new Date(t.fechaUltimaActualizacion)) : '—';
+      let nota = notaOriginalVendedor_(t);
+      let esVA = (sesionActual.rol === 'Vendedor' || sesionActual.rol === 'Administrador');
+      let hayCorregir = estatusCorregiblesPorRol_().length > 0;
+
+      let botonPrincipal = paso.ok
+        ? '<button class="dt-btn-principal" onclick="accionRapidaBadge(\'' + t.id + '\')"><span>' + paso.icono + '</span> ' + paso.texto + '</button>'
+        : '<button class="dt-btn-principal" disabled><span>' + paso.icono + '</span> ' + paso.texto + '</button>';
+
+      let celdas = '<div class="dt-dato"><span>Producto / técnica</span><strong>' + esc_(t.productoTecnica || '—') + '</strong></div>' +
+        '<div class="dt-dato"><span>Cantidad</span><strong>' + esc_(t.cantidad || '—') + (t.cantidad ? ' pzas' : '') + '</strong></div>' +
+        '<div class="dt-dato"><span>Destino</span><strong>' + esc_(t.destino || 'Taller') + '</strong></div>' +
+        '<div class="dt-dato"><span>Ingreso</span><strong>' + ingreso + '</strong></div>' +
+        (t.folioVenta ? '<div class="dt-dato"><span>Folio POS</span><strong>' + esc_(t.folioVenta) + '</strong></div>' : '') +
+        (t.horaEntrega ? '<div class="dt-dato"><span>Hora de entrega</span><strong>' + esc_(t.horaEntrega) + '</strong></div>' : '');
+
+      return '' +
+        '<div class="dt-barra"><button class="dt-volver" onclick="cerrarDetalleTicket()">← Volver</button></div>' +
+        '<header class="dt-head ' + claseHead + '">' +
+          '<div class="dt-head-titulo"><span class="dt-head-ico">' + icono + '</span><div><h2>' + esc_(t.id) + ' · ' + esc_(t.cliente) + (t.folioVenta ? ' · POS ' + esc_(t.folioVenta) : '') + '</h2>' +
+          '<div class="dt-head-sub">' + esc_(t.productoTecnica) + (t.destino === 'Maquila' ? ' · Maquila' : '') + (t.sinDiseno ? ' · Sin diseño' : '') + '</div></div></div>' +
+          '<div class="dt-head-chips"><span class="badge ' + claseBadgePorEstatus(t.estatus) + '">' + esc_(t.estatus) + '</span>' + chipUrgencia_(t) +
+          (entrega ? '<span class="dt-entrega">📅 Entrega: <strong>' + entrega + '</strong></span>' : '') + '</div>' +
+        '</header>' +
+        '<div class="dt-pasos">' + construirPasos_(t) + '</div>' +
+        '<div class="dt-grid">' +
+          '<div class="dt-main">' +
+            '<section class="dt-card"><h3 class="dt-card-titulo"><span class="dt-ico">📄</span>Resumen del pedido</h3><div class="dt-datos">' + celdas + '</div></section>' +
+            (nota ? '<section class="dt-card dt-nota"><h3 class="dt-card-titulo"><span class="dt-ico">📝</span>Notas del vendedor</h3><p>' + linkificar_(nota) + '</p></section>' : '') +
+            construirArchivosDetalle_(t) +
+            construirActividad_(t) +
+          '</div>' +
+          '<aside class="dt-side"><section class="dt-card dt-siguiente">' +
+            '<h3 class="dt-card-titulo"><span class="dt-ico dt-ico-accion">➜</span>' + (paso.ok ? 'Tu siguiente paso' : 'Estado del pedido') + '</h3>' +
+            '<div class="dt-resp-chip">' + esc_(responsableTicket_(t)) + '</div>' +
+            '<div class="dt-btn-escritorio">' + botonPrincipal + '</div>' +
+            '<p class="dt-ayuda">' + paso.ayuda + '</p>' +
+            '<div class="dt-meta"><div><span>Responsable actual</span><strong>' + esc_(responsableTicket_(t)) + '</strong></div><div><span>Última actualización</span><strong>' + ultima + '</strong></div></div>' +
+          '</section></aside>' +
+        '</div>' +
+        '<div class="dt-sticky">' + botonPrincipal + '</div>' +
+        '<footer class="dt-acciones">' +
+          '<button class="dt-sec" onclick="abrirModalEtiqueta(\'' + t.id + '\')" title="Etiqueta / QR">🏷️ <span>Etiqueta / QR</span></button>' +
+          (esVA ? '<button class="dt-sec" onclick="duplicarTicket(\'' + t.id + '\')" title="Duplicar">🧬 <span>Duplicar</span></button>' : '') +
+          (hayCorregir ? '<button class="dt-sec" onclick="abrirModalCorregirEstatus(\'' + t.id + '\')" title="Corregir estatus">✏️ <span>Corregir estatus</span></button>' : '') +
+          (sesionActual.rol === 'Administrador' ? '<div class="dt-mas"><button class="dt-sec dt-sec-mas" aria-label="Más acciones" onclick="this.nextElementSibling.classList.toggle(\'abierto\')">⋮</button><div class="dt-menu"><button onclick="confirmarEliminarTicket(\'' + t.id + '\')">🗑️ Eliminar ticket</button></div></div>' : '') +
+        '</footer>';
+    }
+
+    let detalleTicketId = null;
+    function abrirDetalleTicket(id) {
+      let t = ticketsGlobal.find(x => x.id === id); if (!t) return;
+      let ov = document.getElementById('detalleTicketOverlay');
+      let yaAbierto = ov.style.display === 'block';
+      detalleTicketId = id;
+      document.getElementById('detalleTicketCont').innerHTML = construirVistaDetalle_(t);
+      ov.style.display = 'block';
+      if (!yaAbierto) { ov.scrollTop = 0; try { history.pushState({ detalleTicket: true }, ''); } catch (e) {} }
+      let fab = document.getElementById('fabNuevoPedido'); if (fab) fab.style.visibility = 'hidden';
+    }
+    function refrescarDetalleTicket_() {
+      if (!detalleTicketId) return;
+      let ov = document.getElementById('detalleTicketOverlay');
+      if (ov.style.display !== 'block') return;
+      let t = ticketsGlobal.find(x => x.id === detalleTicketId);
+      if (!t) { cerrarDetalleTicket(); return; }
+      let y = ov.scrollTop;
+      document.getElementById('detalleTicketCont').innerHTML = construirVistaDetalle_(t);
+      ov.scrollTop = y;
+    }
+    function cerrarDetalleTicket(desdePop) {
+      let ov = document.getElementById('detalleTicketOverlay');
+      if (!ov || ov.style.display !== 'block') return;
+      ov.style.display = 'none'; detalleTicketId = null;
+      let fab = document.getElementById('fabNuevoPedido'); if (fab) fab.style.visibility = '';
+      if (desdePop !== true && history.state && history.state.detalleTicket) { try { history.back(); } catch (e) {} }
+    }
+    window.addEventListener('popstate', function() { cerrarDetalleTicket(true); });
+    document.addEventListener('keydown', function(e) {
+      if (e.key !== 'Escape') return;
+      let abiertoModal = Array.from(document.querySelectorAll('.modal-overlay')).some(m => m.style.display === 'flex');
+      if (!abiertoModal) cerrarDetalleTicket();
+    });
+    document.addEventListener('click', function(e) {
+      document.querySelectorAll('.dt-menu.abierto').forEach(m => { if (!m.parentElement.contains(e.target)) m.classList.remove('abierto'); });
+    });
 
     function toggleDetalleMovimiento(id) {
       let el = document.getElementById('detalle-' + id);
@@ -2949,6 +3272,7 @@ var qrcode = function() {
       if(document.getElementById('vistaTickets').classList.contains('active-view')) {
         pintarTarjetasVisuales(ticketsVisibles);
       }
+      refrescarDetalleTicket_();
     }
 
     function filtrarTablaDashboard() {
@@ -3264,19 +3588,9 @@ var qrcode = function() {
 
         html += `
           <div class="ticket-visual-card ${claseCard}">
-            <div class="ticket-card-header" onclick="this.parentElement.classList.toggle('expanded')">
+            <div class="ticket-card-header" onclick="abrirDetalleTicket('${t.id}')">
               <h3><span>${numeroOrden}${iconoTicket} ${t.id} - ${t.cliente} ${textoFolioPOS}</span></h3>
-              <span class="badge ${claseBadge}">${t.estatus}</span>
-            </div>
-            <div class="ticket-card-body" style="padding: 20px;">
-              ${construirDetalleTicket(t)}
-              <div style="display:flex; gap:10px; align-items:center; justify-content:flex-end; flex-wrap:wrap;">
-                <button class="btn-icon" style="border:1px solid #ddd; border-radius:8px; padding:10px 16px;" onclick="event.stopPropagation(); abrirModalEtiqueta('${t.id}')">🏷️ Etiqueta / QR</button>
-                ${botonDuplicar_(t)}
-                ${botonCorregir_(t)}
-                ${botonEliminar_(t)}
-                ${botonAtenderHTML}
-              </div>
+              <div class="ticket-card-accion"><span class="badge ${claseBadge}">${t.estatus}</span><span onclick="event.stopPropagation()">${botonAtenderHTML}</span></div>
             </div>
           </div>
         `;
@@ -3581,19 +3895,9 @@ var qrcode = function() {
     function irATicketDesdeBusqueda(id) {
       document.getElementById('inputBusquedaGlobal').value = "";
       document.getElementById('resultadosBusquedaGlobal').style.display = 'none';
-      cambiarVista('tickets');
-      filtroActualTarjetas = 'todos';
-      document.querySelectorAll('#vistaTickets .tab-btn').forEach(b => b.classList.remove('active-tab'));
-      let btnTodos = document.querySelector('#vistaTickets .tab-btn');
-      if (btnTodos) btnTodos.classList.add('active-tab');
-      document.getElementById('inputBuscarFolio').value = id;
-      pintarTarjetasVisuales(ticketsVisibles);
       document.getElementById('sidebar').classList.remove('open');
       document.getElementById('sidebarOverlay').classList.remove('active');
-      setTimeout(() => {
-        let tarjeta = document.getElementById('contenedorTarjetasVisuales').querySelector('.ticket-visual-card');
-        if (tarjeta) tarjeta.classList.add('expanded');
-      }, 50);
+      abrirDetalleTicket(id);
     }
 
     // Cierra el desplegable de resultados si se hace clic fuera de él.
@@ -3668,19 +3972,9 @@ var qrcode = function() {
 
         html += `
           <div class="ticket-visual-card ${claseCard}">
-            <div class="ticket-card-header" onclick="this.parentElement.classList.toggle('expanded')">
+            <div class="ticket-card-header" onclick="abrirDetalleTicket('${t.id}')">
               <h3><span>${iconoTicket} ${t.id} - ${t.cliente} ${textoFolioPOS}</span></h3>
-              <span class="badge ${claseBadge}">${t.estatus}</span>
-            </div>
-            <div class="ticket-card-body" style="padding: 20px;">
-              ${construirDetalleTicket(t)}
-              <div style="display:flex; gap:10px; align-items:center; justify-content:flex-end; flex-wrap:wrap;">
-                <button class="btn-icon" style="border:1px solid #ddd; border-radius:8px; padding:10px 16px;" onclick="event.stopPropagation(); abrirModalEtiqueta('${t.id}')">🏷️ Etiqueta / QR</button>
-                ${botonDuplicar_(t)}
-                ${botonCorregir_(t)}
-                ${botonEliminar_(t)}
-                ${botonAtenderHTML}
-              </div>
+              <div class="ticket-card-accion"><span class="badge ${claseBadge}">${t.estatus}</span><span onclick="event.stopPropagation()">${botonAtenderHTML}</span></div>
             </div>
           </div>
         `;
