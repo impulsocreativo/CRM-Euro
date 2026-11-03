@@ -60,7 +60,20 @@
   .solo-embed { display:none; } body.embed .solo-embed { display:inline-flex; }
   .msj { margin:10px 0 0; font-size:.85em; font-weight:700; } .msj.ok { color:#2F6F4F; } .msj.err { color:var(--accent-strong); }
   #lienzo { width:100%; border:1px solid var(--line); border-radius:8px; margin-top:10px; background:#fff; }
-  @media (max-width:900px) { .wrap { grid-template-columns:1fr; padding:0 14px 40px; } model-viewer { height:56vh; min-height:320px; } }
+  /* El visor se queda a la vista mientras se baja por las opciones; cada tarjeta del panel se puede plegar. */
+  .visor { position:sticky; top:12px; z-index:20; }
+  .panel > .card > h3 { cursor:pointer; user-select:none; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .panel > .card > h3::after { content:'▾'; color:var(--muted); transition:transform .2s; }
+  .panel > .card.plegada > h3::after { transform:rotate(-90deg); }
+  .panel > .card.plegada > h3 { margin-bottom:0; }
+  .panel > .card.plegada > :not(h3) { display:none !important; }
+  @media (max-width:900px) {
+    .wrap { display:block; padding:0 14px 40px; } .wrap > * + * { margin-top:14px; }
+    .visor { top:0; border-radius:0 0 var(--radius) var(--radius); box-shadow:0 8px 22px rgba(46,36,32,.18); }
+    model-viewer { height:38vh; min-height:230px; }
+    .visor-barra { padding:6px 10px; gap:6px; } .visor-barra > span { display:none; } .visor .credito { display:none; }
+    .panel { gap:10px; }
+  }
 </style>
 </head>
 <body>
@@ -270,6 +283,12 @@
 
   async function enviarWhatsApp() {
     const b = $('btnEnviarWA'), m = $('msjInvitado'); m.textContent = ''; m.className = 'msj';
+    // Un solo toque: en escritorio se abre la pestaña de WhatsApp AHORA (dentro del toque, así el navegador no
+    // la bloquea) y se redirige cuando el diseño ya quedó guardado; en celular se navega en la misma pestaña,
+    // que no depende de ventanas emergentes.
+    const movil = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && Math.min(screen.width, screen.height) < 900);
+    let ventana = null;
+    if (!movil) { try { ventana = window.open('about:blank', '_blank'); if (ventana) ventana.document.write('<p style="font-family:sans-serif;padding:24px">Preparando tu diseño…</p>'); } catch (e) { ventana = null; } }
     const lados = {};
     try {
       Object.keys(MODELOS[prenda].lados).forEach(l => { const s = getSlot(prenda, l); if (s) lados[l] = Object.assign({ cm: s.cm, dx: s.dx, dy: s.dy, rot: s.rot }, arteABase64(s.img)); });
@@ -281,9 +300,10 @@
       const enlace = location.origin + location.pathname + '?d=' + r.token;
       const texto = 'Hola' + (nombre ? ', soy ' + nombre : '') + '. Este es mi diseño en 360° y estos son los logos a emplear (' + MODELOS[prenda].nombre.toLowerCase() + '):\n' + enlace;
       const wa = 'https://wa.me/' + WHATSAPP_EMPRESA + '?text=' + encodeURIComponent(texto);
-      $('waListo').innerHTML = '<p class="msj ok">¡Listo! Tu diseño quedó guardado. Falta un paso: toca el botón para mandárnoslo por WhatsApp.</p><a class="wa-link" href="' + wa + '" target="_blank" rel="noopener">💬 Abrir WhatsApp</a>';
-      try { window.open(wa, '_blank', 'noopener'); } catch (e) {}
-    } catch (e) { console.error(e); m.textContent = e.message || 'Error al enviar.'; m.className = 'msj err'; }
+      $('waListo').innerHTML = '<p class="msj ok">¡Listo! Tu diseño quedó guardado. Si WhatsApp no se abrió solo, toca el botón.</p><a class="wa-link" href="' + wa + '" target="_blank" rel="noopener">💬 Abrir WhatsApp</a>';
+      if (movil) { window.location.href = wa; }
+      else if (ventana && !ventana.closed) { ventana.location.href = wa; }
+    } catch (e) { console.error(e); try { if (ventana && !ventana.closed) ventana.close(); } catch (x) {} m.textContent = e.message || 'Error al enviar.'; m.className = 'msj err'; }
     b.disabled = false; b.textContent = '💬 Enviar por WhatsApp';
   }
 
@@ -340,6 +360,7 @@
     $('btnEnviarWA').onclick = enviarWhatsApp;
     $('btnTodas').onclick = () => ultimasCapturas.forEach((c, i) => setTimeout(() => descargar(c.url, c.nombre), i * 350));
     cambiarFondo(fondo);
+    document.querySelectorAll('.panel > .card > h3').forEach(h => h.onclick = () => h.parentElement.classList.toggle('plegada'));
     marcarActivos();
   }
 
