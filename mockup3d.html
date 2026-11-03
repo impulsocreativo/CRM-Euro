@@ -49,6 +49,11 @@
   details { grid-column:1 / -1; } summary { cursor:pointer; font-weight:800; color:var(--muted); font-size:.85em; }
   .sw.fondo-transp { background:conic-gradient(#ccc 25%,#fff 0 50%,#ccc 0 75%,#fff 0) 0 0/12px 12px !important; }
   .visor.fondo-transp { background:conic-gradient(#e4e4e4 25%,#fff 0 50%,#e4e4e4 0 75%,#fff 0) 0 0/18px 18px !important; }
+  body.embed header.top { display:none; } body.embed .wrap { padding-top:12px; padding-bottom:20px; }
+  body.ver .panel, body.ver details { display:none; } body.ver .wrap { grid-template-columns:minmax(0,1fr); }
+  .solo-editor { display:none; } body.editar .solo-editor { display:block; }
+  .solo-embed { display:none; } body.embed .solo-embed { display:inline-flex; }
+  .msj { margin:10px 0 0; font-size:.85em; font-weight:700; } .msj.ok { color:#2F6F4F; } .msj.err { color:var(--accent-strong); }
   #lienzo { width:100%; border:1px solid var(--line); border-radius:8px; margin-top:10px; background:#fff; }
   @media (max-width:900px) { .wrap { grid-template-columns:1fr; padding:0 14px 40px; } model-viewer { height:56vh; min-height:320px; } }
 </style>
@@ -68,6 +73,7 @@
     <model-viewer id="mv" alt="Vista 360° de la prenda" camera-controls touch-action="pan-y" shadow-intensity="0.9" shadow-softness="1" exposure="1.05" interaction-prompt="none" camera-orbit="0deg 75deg 105%" min-camera-orbit="auto auto 60%" max-camera-orbit="auto auto 180%"></model-viewer>
     <div class="visor-barra">
       <label><input type="checkbox" id="giro"> Giro automático</label>
+      <button class="btn btn-sec solo-embed" id="btnCapturarVisor" style="width:auto;padding:8px 14px;" disabled>📸 Descargar 4 vistas</button>
       <span style="font-size:.8em;color:var(--muted);font-weight:700;">Arrastra para girar · pellizca o usa la rueda para acercar</span>
     </div>
     <p class="credito" id="credito"></p>
@@ -102,6 +108,13 @@
     </section>
   </div>
 
+  <section class="card solo-editor" id="seccionGuardar" style="grid-column:1 / -1;">
+    <h3>Guardar en el ticket <span id="tktEtiqueta" style="color:var(--muted);font-weight:700;"></span></h3>
+    <label style="display:flex;gap:8px;align-items:center;font-weight:700;margin-bottom:12px;"><input type="checkbox" id="chkAdjuntar" checked> Adjuntar también las 4 vistas como mockup del ticket</label>
+    <button class="btn btn-principal" id="btnGuardar" disabled style="max-width:320px;">💾 Guardar mockup 360° en el ticket</button>
+    <p class="msj" id="msjGuardar"></p>
+  </section>
+
   <section class="card capturas" id="seccionCapturas" style="display:none;">
     <h3>Vistas capturadas</h3>
     <div class="grid-cap" id="gridCap"></div>
@@ -132,7 +145,95 @@
     try { MODELOS = await (await fetch('assets/models/modelos.json?t=' + Date.now(), { cache: 'no-store' })).json(); }
     catch (e) { setEstado('No se pudo leer assets/models/modelos.json (abre la página desde un servidor, no como archivo)'); return; }
     construirUI();
-    if (ok) await elegirPrenda('playera');
+    let receta = null;
+    if (EMBED) { try { receta = await cargarRecetaTicket(); } catch (e) { console.error(e); setEstado('No se pudo leer el mockup del ticket'); } }
+    if (ok) await elegirPrenda(receta && MODELOS[receta.prenda] ? receta.prenda : 'playera');
+    if (EMBED && modo === 'ver' && !receta) setEstado('Este ticket aún no tiene mockup 360°');
+  }
+
+  // ---------- modo incrustado (dentro del CRM) ----------
+  // El CRM abre esta página en un iframe y le manda por postMessage el token de sesión y el ticket.
+  // 'ver' = solo girar y descargar vistas; 'editar' = Diseñador/Administrador.
+  const EMBED = new URLSearchParams(location.search).get('embed') === '1';
+  let modo = 'libre', ctxCRM = null;
+  async function api(accion, datos) {
+    const r = await fetch(ctxCRM.apiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ accion, datos: Object.assign({ sesionToken: ctxCRM.token }, datos) }) });
+    return r.json();
+  }
+  function esperarInit() {
+    return new Promise(res => {
+      window.addEventListener('message', function f(e) {
+        if (e.origin !== location.origin || !e.data || e.data.tipo !== 'init') return;
+        window.removeEventListener('message', f); res(e.data);
+      });
+      parent.postMessage({ tipo: 'listo' }, location.origin);
+    });
+  }
+  const cargarImg = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+  async function cargarRecetaTicket() {
+    const r = await api('obtenerMockup3d', { id: ctxCRM.ticketId });
+    if (r && r.sesionInvalida) throw new Error('Sesión no válida');
+    if (!r || r.exito === false) throw new Error((r && r.mensaje) || 'Error');
+    const rec = r.receta; if (!rec) return null;
+    if (/^#[0-9a-fA-F]{6}$/.test(rec.color || '')) color = rec.color;
+    if (rec.fondo) { fondo = rec.fondo; cambiarFondo(fondo); }
+    if (MODELOS[rec.prenda]) {
+      estado[rec.prenda] = {};
+      for (const nombre of Object.keys(rec.lados || {})) {
+        const z = rec.lados[nombre]; if (!MODELOS[rec.prenda].lados[nombre]) continue;
+        try { estado[rec.prenda][nombre] = { img: await cargarImg('data:' + z.mimeType + ';base64,' + z.base64), cm: z.cm, dx: z.dx, dy: z.dy, rot: z.rot }; } catch (e) { console.error('Arte ilegible en', nombre); }
+      }
+    }
+    return rec;
+  }
+  function aModoEmbed(init) {
+    ctxCRM = init; modo = init.modo === 'editar' ? 'editar' : 'ver';
+    document.body.classList.add('embed', modo);
+    $('tktEtiqueta').textContent = '· ' + init.ticketId;
+  }
+
+  // Reduce el arte a un tamaño razonable para subirlo (el servidor acepta ~1.1 MB por zona).
+  function arteABase64(img) {
+    for (const max of [1024, 800, 600, 420]) {
+      const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      for (const [mime, q] of [['image/png'], ['image/webp', 0.9], ['image/webp', 0.75]]) {
+        const d = c.toDataURL(mime, q); if (!d.startsWith('data:' + mime)) continue;
+        const b64 = d.split(',')[1]; if (b64.length <= 1400000) return { mimeType: mime, base64: b64 };
+      }
+    }
+    throw new Error('No se pudo reducir el arte lo suficiente.');
+  }
+  const blobABase64 = blob => new Promise((res, rej) => { const f = new FileReader(); f.onload = () => res(String(f.result).split(',')[1]); f.onerror = rej; f.readAsDataURL(blob); });
+  const msj = (t, ok) => { const m = $('msjGuardar'); m.textContent = t; m.className = 'msj ' + (ok ? 'ok' : 'err'); };
+
+  async function guardarEnTicket() {
+    if (modo !== 'editar') return;
+    const b = $('btnGuardar'); b.disabled = true; b.textContent = 'Guardando…'; msj('', true);
+    try {
+      const lados = {};
+      Object.keys(MODELOS[prenda].lados).forEach(l => {
+        const s = getSlot(prenda, l); if (!s) return;
+        lados[l] = Object.assign({ cm: s.cm, dx: s.dx, dy: s.dy, rot: s.rot }, arteABase64(s.img));
+      });
+      let r = await api('guardarMockup3d', { id: ctxCRM.ticketId, receta: { prenda, color, fondo, lados } });
+      if (!r || r.exito !== true) throw new Error((r && r.mensaje) || 'No se pudo guardar.');
+      let extra = '';
+      if ($('chkAdjuntar').checked) {
+        b.textContent = 'Adjuntando vistas…';
+        await capturar($('btnCapturarVisor'));
+        const archivos = [];
+        for (const c of ultimasCapturas) archivos.push({ nombre: c.nombre, mimeType: 'image/png', base64: await blobABase64(await (await fetch(c.url)).blob()) });
+        if (archivos.length) {
+          r = await api('procesarTicketDiseno', { id: ctxCRM.ticketId, archivos, notasDisenador: '' });
+          extra = r && r.exito ? ' Vistas adjuntadas al ticket.' : ' (El mockup se guardó, pero no se pudieron adjuntar las vistas.)';
+        }
+      }
+      msj('Mockup 360° guardado.' + extra, true);
+      parent.postMessage({ tipo: 'guardado', ticketId: ctxCRM.ticketId }, location.origin);
+    } catch (e) { console.error(e); msj(e.message || 'Error al guardar.', false); }
+    b.disabled = false; b.textContent = '💾 Guardar mockup 360° en el ticket';
   }
 
   function construirUI() {
@@ -151,7 +252,9 @@
     $('rotRapido').onclick = e => { const x = e.target.closest('[data-r]'); if (x) { $('rRot').value = x.dataset.r; leerControles(); } };
     $('btnQuitar').onclick = () => { if (estado[prenda]) delete estado[prenda][lado]; refrescarControles(); repintar(); };
     $('giro').onchange = e => { mv.autoRotate = e.target.checked; if (e.target.checked) mv.setAttribute('auto-rotate', ''); else mv.removeAttribute('auto-rotate'); };
-    $('btnCapturar').onclick = capturar;
+    $('btnCapturar').onclick = () => capturar($('btnCapturar'));
+    $('btnCapturarVisor').onclick = () => capturar($('btnCapturarVisor'));
+    $('btnGuardar').onclick = guardarEnTicket;
     $('btnTodas').onclick = () => ultimasCapturas.forEach((c, i) => setTimeout(() => descargar(c.url, c.nombre), i * 350));
     cambiarFondo(fondo);
     marcarActivos();
@@ -165,13 +268,13 @@
   }
 
   async function elegirPrenda(id) {
-    prenda = id; lado = 'frente'; cargada = false; $('btnCapturar').disabled = true;
+    prenda = id; lado = 'frente'; cargada = false; habilitarCaptura(false);
     marcarActivos(); refrescarControles();
     const m = MODELOS[id]; setEstado('Cargando ' + m.nombre.toLowerCase() + '…');
     canvas.width = m.lienzo[0]; canvas.height = m.lienzo[1];
     await new Promise(res => { const f = () => { mv.removeEventListener('load', f); res(); }; mv.addEventListener('load', f); mv.src = 'assets/models/' + m.archivo + (m.v ? '?v=' + m.v : ''); });
-    cargada = true; $('btnCapturar').disabled = false; setEstado(m.nombre);
-    $('credito').innerHTML = m.creditoUrl ? `Modelo <a href="${m.creditoUrl}" target="_blank" rel="noopener">«T Shirt»</a> de ${m.creditoAutor}, licencia <a href="${m.licenciaUrl}" target="_blank" rel="noopener">${m.licencia}</a>. Simplificado y adaptado para CRM Euro.` : 'Modelo de prueba (sin textura real).';
+    cargada = true; habilitarCaptura(true); setEstado(m.nombre);
+    $('credito').innerHTML = m.creditoUrl ? `Modelo 3D de <a href="${m.creditoUrl}" target="_blank" rel="noopener">${m.creditoAutor}</a>, licencia <a href="${m.licenciaUrl}" target="_blank" rel="noopener">${m.licencia}</a>. Simplificado y adaptado para CRM Euro.` : 'Modelo de prueba (sin textura real).';
     mv.cameraOrbit = m.lados.frente.camara; if (mv.jumpCameraToGoal) mv.jumpCameraToGoal();
     await repintar(true);
   }
@@ -256,8 +359,9 @@
   // ---------- capturas ----------
   const VISTAS = [['frente', '0deg 75deg 105%'], ['tres-cuartos', '35deg 72deg 105%'], ['lateral', '90deg 75deg 105%'], ['espalda', '180deg 75deg 105%']];
   const espera = ms => new Promise(r => setTimeout(r, ms));
-  async function capturar() {
-    const b = $('btnCapturar'); b.disabled = true; b.textContent = 'Capturando…';
+  function habilitarCaptura(v) { ['btnCapturar','btnCapturarVisor'].forEach(id => $(id).disabled = !v); if (modo === 'editar') $('btnGuardar').disabled = !v; }
+  async function capturar(b) {
+    b = b || $('btnCapturar'); const txt = b.textContent; b.disabled = true; b.textContent = 'Capturando…';
     const giroAntes = mv.hasAttribute('auto-rotate'); mv.removeAttribute('auto-rotate');
     const orbitaAntes = mv.cameraOrbit;
     ultimasCapturas.forEach(c => URL.revokeObjectURL(c.url)); ultimasCapturas = [];
@@ -272,12 +376,12 @@
     mv.cameraOrbit = orbitaAntes; if (giroAntes) mv.setAttribute('auto-rotate', '');
     $('gridCap').innerHTML = ultimasCapturas.map(c => `<div class="cap"><img src="${c.url}" alt="${c.etiqueta}"><div><span style="text-transform:capitalize">${c.etiqueta.replace('-', ' ')}</span><a href="${c.url}" download="${c.nombre}">Descargar</a></div></div>`).join('');
     $('seccionCapturas').style.display = ultimasCapturas.length ? 'block' : 'none';
-    b.disabled = false; b.textContent = '📸 Capturar 4 vistas';
-    if (ultimasCapturas.length) $('seccionCapturas').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    b.disabled = false; b.textContent = txt;
+    if (ultimasCapturas.length && modo !== 'embed-x') $('seccionCapturas').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
   function descargar(url, nombre) { const a = document.createElement('a'); a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove(); }
 
-  iniciar();
+  if (EMBED) esperarInit().then(init => { aModoEmbed(init); iniciar(); }); else iniciar();
 })();
 </script>
 </body>
