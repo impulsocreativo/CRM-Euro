@@ -1,0 +1,134 @@
+{
+ "playera": {
+  "nombre": "Playera",
+  "archivo": "playera.glb",
+  "lienzo": [
+   2048,
+   1024
+  ],
+  "pxPorMetro": 1365.4,
+  "tipo": "plana",
+  "credito": "Modelo «T Shirt» de funlab117 (CC BY 4.0), simplificado para CRM Euro",
+  "lados": {
+   "frente": {
+    "panel": [
+     0.1125,
+     0.3792,
+     0.1067,
+     0.9467
+    ],
+    "centro": [
+     0.2459,
+     0.28
+    ],
+    "camara": "0deg 78deg 105%"
+   },
+   "espalda": {
+    "panel": [
+     0.6208,
+     0.8875,
+     0.1067,
+     0.9467
+    ],
+    "centro": [
+     0.7541,
+     0.28
+    ],
+    "camara": "180deg 78deg 105%"
+   }
+  },
+  "creditoUrl": "https://sketchfab.com/3d-models/t-shirt-c1a3e5eb9b5445f4b7d4be82f1127eba",
+  "creditoAutor": "funlab117",
+  "licencia": "CC BY 4.0",
+  "licenciaUrl": "http://creativecommons.org/licenses/by/4.0/"
+ },
+ "sudadera": {
+  "nombre": "Sudadera",
+  "archivo": "sudadera.glb",
+  "lienzo": [
+   2048,
+   1024
+  ],
+  "pxPorMetro": 1055.7,
+  "tipo": "plana",
+  "lados": {
+   "frente": {
+    "panel": [
+     0.1366,
+     0.3634,
+     0.1237,
+     0.8454
+    ],
+    "centro": [
+     0.25,
+     0.3918
+    ],
+    "camara": "0deg 75deg 105%"
+   },
+   "espalda": {
+    "panel": [
+     0.6366,
+     0.8634,
+     0.1237,
+     0.8454
+    ],
+    "centro": [
+     0.75,
+     0.3918
+    ],
+    "camara": "180deg 75deg 105%"
+   }
+  }
+ },
+ "gorra": {
+  "nombre": "Gorra",
+  "archivo": "gorra.glb",
+  "lienzo": [
+   2048,
+   512
+  ],
+  "pxPorMetro": 3299.1,
+  "tipo": "gorra",
+  "lados": {
+   "frente": {
+    "panel": [
+     0.38,
+     0.62,
+     0.12,
+     0.8
+    ],
+    "centro": [
+     0.5,
+     0.42
+    ],
+    "camara": "0deg 80deg 105%"
+   },
+   "lateral derecho": {
+    "panel": [
+     0.66,
+     0.86,
+     0.12,
+     0.8
+    ],
+    "centro": [
+     0.75,
+     0.42
+    ],
+    "camara": "90deg 80deg 105%"
+   },
+   "lateral izquierdo": {
+    "panel": [
+     0.14,
+     0.34,
+     0.12,
+     0.8
+    ],
+    "centro": [
+     0.25,
+     0.42
+    ],
+    "camara": "-90deg 80deg 105%"
+   }
+  }
+ }
+}
