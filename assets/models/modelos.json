@@ -219,73 +219,51 @@
   "nombre": "Gorra",
   "archivo": "gorra.glb",
   "lienzo": [
-   2048,
-   2048
+   1024,
+   1024
   ],
   "pxPorMetro": 3413.3,
   "tipo": "gorra",
-  "v": "1",
-  "credito": "Modelo «Baseball Cap» de jomalon (CC BY 4.0), simplificado para CRM Euro",
-  "creditoUrl": "https://sketchfab.com/3d-models/baseball-cap-75d11d363e1c4884a714a776049ea4a0",
-  "creditoAutor": "jomalon",
+  "v": "3",
+  "credito": "Modelo «Trucker Hat» de matheus pedreira (CC BY 4.0), sin logos y con partes separadas para CRM Euro",
+  "creditoUrl": "https://sketchfab.com/3d-models/trucker-hat-dbb5b0e0418540328423c616049c0f64",
+  "creditoAutor": "matheus pedreira",
   "licencia": "CC BY 4.0",
   "licenciaUrl": "http://creativecommons.org/licenses/by/4.0/",
+  "partes": [
+   {
+    "id": "frente",
+    "nombre": "Frente",
+    "tipo": "lienzo",
+    "material": "frente"
+   },
+   {
+    "id": "laterales",
+    "nombre": "Laterales y trasera",
+    "tipo": "material",
+    "material": "laterales"
+   },
+   {
+    "id": "visera",
+    "nombre": "Visera",
+    "tipo": "material",
+    "material": "visera"
+   }
+  ],
   "lados": {
    "frente": {
     "panel": [
-     0.12,
-     0.38,
-     0.08,
-     0.42
+     0.2,
+     0.8,
+     0.2,
+     0.8
     ],
     "centro": [
-     0.25,
-     0.2663
+     0.5,
+     0.5
     ],
     "cmDefecto": 7,
     "camara": "0deg 80deg 85%"
-   },
-   "lateral izquierdo": {
-    "panel": [
-     0.55,
-     0.95,
-     0.55,
-     0.95
-    ],
-    "centro": [
-     0.75,
-     0.7663
-    ],
-    "cmDefecto": 4,
-    "camara": "90deg 80deg 85%"
-   },
-   "lateral derecho": {
-    "panel": [
-     0.05,
-     0.45,
-     0.55,
-     0.95
-    ],
-    "centro": [
-     0.25,
-     0.7663
-    ],
-    "cmDefecto": 4,
-    "camara": "-90deg 80deg 85%"
-   },
-   "trasera": {
-    "panel": [
-     0.62,
-     0.88,
-     0.08,
-     0.42
-    ],
-    "centro": [
-     0.75,
-     0.2663
-    ],
-    "cmDefecto": 5,
-    "camara": "180deg 80deg 85%"
    }
   }
  }
