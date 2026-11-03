@@ -90,7 +90,7 @@
   </section>
 
   <div class="panel">
-    <section class="card"><h3>1 · Prenda</h3><div class="opciones" id="opsPrenda"></div></section>
+    <section class="card"><h3>1 · Prenda</h3><div class="opciones" id="opsCategoria" style="margin-bottom:8px;"></div><div class="opciones" id="opsPrenda"></div></section>
     <section class="card"><h3>2 · Color de la prenda</h3>
       <div class="opciones" id="opsParte" style="margin-bottom:10px;display:none;"></div>
       <div class="colores" id="colores"></div>
@@ -159,13 +159,16 @@
   let MODELOS = {}, prenda = 'playera', lado = 'frente', color = '#FFFFFF';
   // Prendas con partes (ej. la gorra): cada parte tiene su propio color. 'lienzo' = se pinta en la textura
   // (junto con el arte); 'material' = se tiñe el material del modelo directamente (ej. malla y visera).
-  let parteActiva = 'todo'; const coloresParte = {};
+  let parteActiva = 'todo', categoriaActiva = ''; const coloresParte = {};
+  const ALIAS_PRENDA = { gorra: 'gorra_trucker' };   // recetas guardadas antes de separar Trucker / Cerrada
+  const categorias = () => [...new Set(Object.keys(MODELOS).map(k => MODELOS[k].categoria).filter(Boolean))];
+  const hexALineal = h => [1, 3, 5].map(i => { const c = parseInt(h.slice(i, i + 2), 16) / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }).concat([1]);
   const partesDe = p => (MODELOS[p] && MODELOS[p].partes) || null;
   const colorDe = (p, parte) => (coloresParte[p] && coloresParte[p][parte]) || color;
   const colorActivo = () => (partesDe(prenda) && parteActiva !== 'todo') ? colorDe(prenda, parteActiva) : color;
   function aplicarColoresMateriales() {
     const ps = partesDe(prenda); if (!ps || !mv.model) return;
-    ps.filter(x => x.tipo === 'material').forEach(x => { const mat = mv.model.materials.find(m => m.name === x.material); if (mat) { try { mat.pbrMetallicRoughness.setBaseColorFactor(colorDe(prenda, x.id)); } catch (e) { console.error('No se pudo teñir', x.id, e); } } });
+    ps.filter(x => x.tipo === 'material').forEach(x => { const mat = mv.model.materials.find(m => m.name === x.material); if (mat) { try { mat.pbrMetallicRoughness.setBaseColorFactor(hexALineal(colorDe(prenda, x.id))); } catch (e) { console.error('No se pudo teñir', x.id, e); } } });
   }
   const estado = {};            // estado[prenda][lado] = { img, cm, dx, dy, rot }
   let cargada = false, pendiente = null, ultimasCapturas = [];
@@ -230,6 +233,7 @@
   const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   async function aplicarReceta(rec) {
     if (!rec) return null;
+    rec.prenda = ALIAS_PRENDA[rec.prenda] || rec.prenda;
     if (/^#[0-9a-fA-F]{6}$/.test(rec.color || '')) color = rec.color;
     if (rec.colores && typeof rec.colores === 'object') coloresParte[rec.prenda] = Object.assign({}, rec.colores);
     if (rec.fondo) { fondo = rec.fondo; cambiarFondo(fondo); }
@@ -312,8 +316,9 @@
   }
 
   function construirUI() {
-    $('opsPrenda').innerHTML = Object.keys(MODELOS).map(id => `<button class="opt" data-p="${id}">${MODELOS[id].nombre}</button>`).join('');
-    $('opsPrenda').onclick = e => { let b = e.target.closest('[data-p]'); if (b) elegirPrenda(b.dataset.p); };
+    categoriaActiva = (MODELOS[prenda] && MODELOS[prenda].categoria) || categorias()[0] || '';
+    $('opsCategoria').onclick = e => { const b = e.target.closest('[data-cat]'); if (!b) return; categoriaActiva = b.dataset.cat; const primero = Object.keys(MODELOS).find(k => MODELOS[k].categoria === categoriaActiva && !MODELOS[k].proximamente); marcarActivos(); if (primero && MODELOS[prenda].categoria !== categoriaActiva) elegirPrenda(primero); };
+    $('opsPrenda').onclick = e => { let b = e.target.closest('[data-p]'); if (b && !b.disabled) elegirPrenda(b.dataset.p); };
     $('colores').innerHTML = COLORES.map(c => `<button class="sw" data-c="${c}" style="background:${c}" aria-label="Color ${c}"></button>`).join('') + '<input type="color" id="colorLibre" value="#ffffff" aria-label="Otro color">';
     $('colores').onclick = e => { let b = e.target.closest('[data-c]'); if (b) cambiarColor(b.dataset.c); };
     const FONDOS = [['crema','#F6EDE2'],['blanco','#FFFFFF'],['gris','#D9D9D9'],['negro','#1E1E1E'],['transp','transparent']];
@@ -328,6 +333,7 @@
     $('rotRapido').onclick = e => { const x = e.target.closest('[data-r]'); if (x) { $('rRot').value = x.dataset.r; leerControles(); } };
     $('btnQuitar').onclick = () => { if (estado[prenda]) delete estado[prenda][lado]; refrescarControles(); repintar(); };
     $('giro').onchange = e => { mv.autoRotate = e.target.checked; if (e.target.checked) mv.setAttribute('auto-rotate', ''); else mv.removeAttribute('auto-rotate'); };
+    mv.addEventListener('model-visibility', aplicarColoresMateriales);
     $('btnCapturar').onclick = () => capturar($('btnCapturar'));
     $('btnCapturarVisor').onclick = () => capturar($('btnCapturarVisor'));
     $('btnGuardar').onclick = guardarEnTicket;
@@ -338,17 +344,21 @@
   }
 
   function marcarActivos() {
-    document.querySelectorAll('#opsPrenda .opt').forEach(b => b.classList.toggle('activo', b.dataset.p === prenda));
+    const cats = categorias(); $('opsCategoria').style.display = cats.length > 1 ? 'flex' : 'none';
+    $('opsCategoria').innerHTML = cats.map(c => `<button class="opt ${c === categoriaActiva ? 'activo' : ''}" data-cat="${c}">${c}</button>`).join('');
+    $('opsPrenda').innerHTML = Object.keys(MODELOS).filter(k => !categoriaActiva || MODELOS[k].categoria === categoriaActiva).map(k => MODELOS[k].proximamente
+      ? `<button class="opt" disabled style="opacity:.55;cursor:not-allowed" title="Próximamente">${MODELOS[k].nombre} · próximamente</button>`
+      : `<button class="opt ${k === prenda ? 'activo' : ''}" data-p="${k}">${MODELOS[k].nombre}</button>`).join('');
     const ps = partesDe(prenda);
     $('opsParte').style.display = ps ? 'flex' : 'none';
     if (ps) $('opsParte').innerHTML = [{ id: 'todo', nombre: 'Todo' }].concat(ps).map(x => `<button class="opt ${x.id === parteActiva ? 'activo' : ''}" data-pa="${x.id}">${x.nombre}</button>`).join('');
     document.querySelectorAll('#colores .sw').forEach(b => b.classList.toggle('activo', b.dataset.c.toLowerCase() === colorActivo().toLowerCase()));
     const lados = Object.keys(MODELOS[prenda] ? MODELOS[prenda].lados : {});
-    $('opsLado').innerHTML = lados.map(l => `<button class="opt ${l === lado ? 'activo' : ''}" data-l="${l}" style="text-transform:capitalize">${l}</button>`).join('');
+    $('opsLado').innerHTML = lados.map(l => `<button class="opt ${l === lado ? 'activo' : ''}" data-l="${l}" style="text-transform:capitalize">${(MODELOS[prenda].lados[l].etiqueta || l)}</button>`).join('');
   }
 
   async function elegirPrenda(id) {
-    prenda = id; lado = 'frente'; parteActiva = 'todo'; cargada = false; habilitarCaptura(false);
+    prenda = id; lado = 'frente'; parteActiva = 'todo'; categoriaActiva = MODELOS[id].categoria || categoriaActiva; cargada = false; habilitarCaptura(false);
     marcarActivos(); refrescarControles();
     const m = MODELOS[id]; setEstado('Cargando ' + m.nombre.toLowerCase() + '…');
     canvas.width = m.lienzo[0]; canvas.height = m.lienzo[1];
@@ -402,7 +412,7 @@
     const s = getSlot(), m = MODELOS[prenda];
     $('controlesArte').style.display = s ? 'block' : 'none';
     $('zonaArte').textContent = s ? '🔁 Cambiar arte de este lado' : '📎 Subir arte (PNG con fondo transparente es lo ideal)';
-    $('ayudaLado').textContent = lado.indexOf('manga') === 0 ? 'Manga izquierda y derecha son las de quien usa la prenda. Empieza con ~8 cm; ajusta el tamaño con el control de ancho.' : m && m.tipo === 'gorra' ? 'En gorras el arte se curva con la cúpula; los tamaños son aproximados en este prototipo.' : 'Lado actual: ' + lado + '. Cada lado guarda su propio arte.';
+    $('ayudaLado').textContent = lado.indexOf('pecho') === 0 ? 'Logo pequeño de pecho (≈8–10 cm). «Pecho izquierdo» es el de quien usa la prenda. Usa pecho izquierdo y derecho a la vez para dos aplicaciones, o «Frente» para una aplicación grande.' : lado.indexOf('manga') === 0 ? 'Manga izquierda y derecha son las de quien usa la prenda. Empieza con ~8 cm; ajusta el tamaño con el control de ancho.' : m && m.tipo === 'gorra' ? 'En gorras el arte se curva con la cúpula; los tamaños son aproximados en este prototipo.' : 'Lado actual: ' + lado + '. Cada lado guarda su propio arte.';
     if (s) { $('rCm').value = s.cm; $('rX').value = s.dx; $('rY').value = s.dy; $('rRot').value = s.rot; etiquetas(); }
   }
   function etiquetas() { $('oCm').textContent = $('rCm').value + ' cm'; $('oX').textContent = $('rX').value + ' cm'; $('oY').textContent = $('rY').value + ' cm'; $('oRot').textContent = $('rRot').value + '°'; }
