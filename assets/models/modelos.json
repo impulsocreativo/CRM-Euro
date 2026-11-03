@@ -64,6 +64,81 @@
     "cmDefecto": 8,
     "camara": "-90deg 80deg 80%"
    }
+  },
+  "v": "2-mangas"
+ },
+ "manga_larga": {
+  "nombre": "Manga larga",
+  "archivo": "manga_larga.glb",
+  "lienzo": [
+   2048,
+   2048
+  ],
+  "pxPorMetro": 1285.2,
+  "tipo": "plana",
+  "v": "1",
+  "credito": "Modelo «Long Sleeve T- Shirt» de chokybali (CC BY 4.0), simplificado para CRM Euro",
+  "creditoUrl": "https://sketchfab.com/3d-models/long-sleeve-t-shirt-ef22cf345c174b569fdfa6a653a6bf6f",
+  "creditoAutor": "chokybali",
+  "licencia": "CC BY 4.0",
+  "licenciaUrl": "http://creativecommons.org/licenses/by/4.0/",
+  "lados": {
+   "frente": {
+    "panel": [
+     0.1121,
+     0.3882,
+     0.0439,
+     0.4686
+    ],
+    "centro": [
+     0.2502,
+     0.1621
+    ],
+    "cmDefecto": 28,
+    "camara": "0deg 78deg 105%"
+   },
+   "espalda": {
+    "panel": [
+     0.6118,
+     0.8879,
+     0.0439,
+     0.4686
+    ],
+    "centro": [
+     0.7498,
+     0.1621
+    ],
+    "cmDefecto": 28,
+    "camara": "180deg 78deg 105%"
+   },
+   "manga izquierda": {
+    "panel": [
+     0.02,
+     0.48,
+     0.52,
+     0.98
+    ],
+    "centro": [
+     0.25,
+     0.75
+    ],
+    "cmDefecto": 8,
+    "camara": "90deg 80deg 80%"
+   },
+   "manga derecha": {
+    "panel": [
+     0.52,
+     0.98,
+     0.52,
+     0.98
+    ],
+    "centro": [
+     0.75,
+     0.75
+    ],
+    "cmDefecto": 8,
+    "camara": "-90deg 80deg 80%"
+   }
   }
  },
  "sudadera": {
@@ -71,36 +146,72 @@
   "archivo": "sudadera.glb",
   "lienzo": [
    2048,
-   1024
+   2048
   ],
-  "pxPorMetro": 1055.7,
+  "pxPorMetro": 1220.6,
   "tipo": "plana",
+  "v": "2",
+  "credito": "Modelo «Hoodie» de Virtual Pandora (CC BY 4.0), simplificado para CRM Euro",
+  "creditoUrl": "https://sketchfab.com/3d-models/hoodie-97611a53e3b846f69e0655b210f72b2f",
+  "creditoAutor": "Virtual Pandora",
+  "licencia": "CC BY 4.0",
+  "licenciaUrl": "http://creativecommons.org/licenses/by/4.0/",
   "lados": {
    "frente": {
     "panel": [
-     0.1366,
-     0.3634,
-     0.1237,
-     0.8454
+     0.1191,
+     0.3814,
+     0.0417,
+     0.4702
     ],
     "centro": [
-     0.25,
-     0.3918
+     0.2502,
+     0.2261
     ],
-    "camara": "0deg 75deg 105%"
+    "cmDefecto": 24,
+    "camara": "0deg 78deg 105%"
    },
    "espalda": {
     "panel": [
-     0.6366,
-     0.8634,
-     0.1237,
-     0.8454
+     0.6186,
+     0.8809,
+     0.0417,
+     0.4702
+    ],
+    "centro": [
+     0.7498,
+     0.2261
+    ],
+    "cmDefecto": 24,
+    "camara": "180deg 78deg 105%"
+   },
+   "manga izquierda": {
+    "panel": [
+     0.02,
+     0.48,
+     0.52,
+     0.98
+    ],
+    "centro": [
+     0.25,
+     0.75
+    ],
+    "cmDefecto": 8,
+    "camara": "90deg 80deg 80%"
+   },
+   "manga derecha": {
+    "panel": [
+     0.52,
+     0.98,
+     0.52,
+     0.98
     ],
     "centro": [
      0.75,
-     0.3918
+     0.75
     ],
-    "camara": "180deg 75deg 105%"
+    "cmDefecto": 8,
+    "camara": "-90deg 80deg 80%"
    }
   }
  },
@@ -109,49 +220,72 @@
   "archivo": "gorra.glb",
   "lienzo": [
    2048,
-   512
+   2048
   ],
-  "pxPorMetro": 3299.1,
+  "pxPorMetro": 3413.3,
   "tipo": "gorra",
+  "v": "1",
+  "credito": "Modelo «Baseball Cap» de jomalon (CC BY 4.0), simplificado para CRM Euro",
+  "creditoUrl": "https://sketchfab.com/3d-models/baseball-cap-75d11d363e1c4884a714a776049ea4a0",
+  "creditoAutor": "jomalon",
+  "licencia": "CC BY 4.0",
+  "licenciaUrl": "http://creativecommons.org/licenses/by/4.0/",
   "lados": {
    "frente": {
     "panel": [
+     0.12,
      0.38,
-     0.62,
-     0.12,
-     0.8
-    ],
-    "centro": [
-     0.5,
+     0.08,
      0.42
-    ],
-    "camara": "0deg 80deg 105%"
-   },
-   "lateral derecho": {
-    "panel": [
-     0.66,
-     0.86,
-     0.12,
-     0.8
-    ],
-    "centro": [
-     0.75,
-     0.42
-    ],
-    "camara": "90deg 80deg 105%"
-   },
-   "lateral izquierdo": {
-    "panel": [
-     0.14,
-     0.34,
-     0.12,
-     0.8
     ],
     "centro": [
      0.25,
+     0.2663
+    ],
+    "cmDefecto": 7,
+    "camara": "0deg 80deg 85%"
+   },
+   "lateral izquierdo": {
+    "panel": [
+     0.55,
+     0.95,
+     0.55,
+     0.95
+    ],
+    "centro": [
+     0.75,
+     0.7663
+    ],
+    "cmDefecto": 4,
+    "camara": "90deg 80deg 85%"
+   },
+   "lateral derecho": {
+    "panel": [
+     0.05,
+     0.45,
+     0.55,
+     0.95
+    ],
+    "centro": [
+     0.25,
+     0.7663
+    ],
+    "cmDefecto": 4,
+    "camara": "-90deg 80deg 85%"
+   },
+   "trasera": {
+    "panel": [
+     0.62,
+     0.88,
+     0.08,
      0.42
     ],
-    "camara": "-90deg 80deg 105%"
+    "centro": [
+     0.75,
+     0.2663
+    ],
+    "cmDefecto": 5,
+    "camara": "180deg 80deg 85%"
    }
   }
  }

@@ -1,0 +1,6 @@
+Modelos 3D usados en CRM Euro (todos CC BY 4.0, http://creativecommons.org/licenses/by/4.0/)
+Se reorientaron, simplificaron y se les crearon UV nuevos (cambios hechos para CRM Euro).
+
+- manga_larga.glb: "Long Sleeve T- Shirt" por chokybali - https://sketchfab.com/3d-models/long-sleeve-t-shirt-ef22cf345c174b569fdfa6a653a6bf6f
+- sudadera.glb: "Hoodie" por Virtual Pandora - https://sketchfab.com/3d-models/hoodie-97611a53e3b846f69e0655b210f72b2f
+- gorra.glb: "Baseball Cap" por jomalon - https://sketchfab.com/3d-models/baseball-cap-75d11d363e1c4884a714a776049ea4a0
