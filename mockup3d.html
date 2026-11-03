@@ -50,6 +50,11 @@
   .sw.fondo-transp { background:conic-gradient(#ccc 25%,#fff 0 50%,#ccc 0 75%,#fff 0) 0 0/12px 12px !important; }
   .visor.fondo-transp { background:conic-gradient(#e4e4e4 25%,#fff 0 50%,#e4e4e4 0 75%,#fff 0) 0 0/18px 18px !important; }
   body.embed header.top { display:none; } body.embed .wrap { padding-top:12px; padding-bottom:20px; }
+  .solo-invitado, .solo-verinv { display:none; } body.invitado .solo-invitado { display:block; } body.verinv .solo-verinv { display:block; }
+  body.invitado details, body.invitado #cardVistas { display:none; } body.verinv .solo-embed { display:inline-flex; }
+  body.invitado .wrap, body.verinv .wrap { padding-top:6px; }
+  .campo { width:100%; border:1.5px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; background:var(--surface); color:var(--text); margin-bottom:10px; }
+  .wa-link { display:inline-flex; align-items:center; justify-content:center; gap:8px; text-decoration:none; background:#25D366; color:#fff; padding:12px 20px; border-radius:999px; font-weight:800; margin-top:10px; }
   body.ver .panel, body.ver details { display:none; } body.ver .wrap { grid-template-columns:minmax(0,1fr); }
   .solo-editor { display:none; } body.editar .solo-editor { display:block; }
   .solo-embed { display:none; } body.embed .solo-embed { display:inline-flex; }
@@ -59,7 +64,7 @@
 </style>
 </head>
 <body>
-<header class="top"><h1>Mockup 3D</h1><span class="pill">Prototipo</span></header>
+<header class="top"><h1 id="tituloPagina">Mockup 3D</h1><span class="pill" id="pillPagina">Prototipo</span></header>
 
 <div class="wrap">
   <div class="aviso" id="avisoLibreria">
@@ -79,6 +84,11 @@
     <p class="credito" id="credito"></p>
   </div>
 
+  <section class="card solo-invitado" style="grid-column:1 / -1;order:-1;">
+    <h3>Diseña tu prenda en 360°</h3>
+    <p style="margin:0;line-height:1.5;color:var(--muted);">1) Elige la prenda y el color. 2) Sube tu logo en cada zona donde lo quieras (frente, espalda, mangas…) y acomódalo con los controles. 3) Escribe tu nombre y envíanos el diseño por WhatsApp.</p>
+  </section>
+
   <div class="panel">
     <section class="card"><h3>1 · Prenda</h3><div class="opciones" id="opsPrenda"></div></section>
     <section class="card"><h3>2 · Color de la prenda</h3>
@@ -91,7 +101,7 @@
     <section class="card"><h3>3 · Estampado o bordado</h3>
       <div class="opciones" id="opsLado" style="margin-bottom:10px;"></div>
       <label class="vacio-arte" id="zonaArte" for="archivoArte">📎 Subir arte (PNG con fondo transparente es lo ideal)</label>
-      <input type="file" id="archivoArte" accept="image/*" hidden>
+      <input type="file" id="archivoArte" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden>
       <div id="controlesArte" style="display:none;">
         <div class="fila"><span>Ancho (cm)</span><input type="range" id="rCm" min="4" max="45" step="0.5"><output id="oCm"></output></div>
         <div class="fila"><span>Horizontal</span><input type="range" id="rX" min="-25" max="25" step="0.5"><output id="oX"></output></div>
@@ -102,7 +112,7 @@
       </div>
       <p class="ayuda" id="ayudaLado"></p>
     </section>
-    <section class="card"><h3>4 · Guardar vistas</h3>
+    <section class="card" id="cardVistas"><h3>4 · Guardar vistas</h3>
       <button class="btn btn-principal" id="btnCapturar" disabled>📸 Capturar 4 vistas</button>
       <p class="ayuda">Genera frente, ¾, lateral y espalda en imágenes listas para adjuntar al ticket como mockup.</p>
     </section>
@@ -113,6 +123,21 @@
     <label style="display:flex;gap:8px;align-items:center;font-weight:700;margin-bottom:12px;"><input type="checkbox" id="chkAdjuntar" checked> Adjuntar también las 4 vistas como mockup del ticket</label>
     <button class="btn btn-principal" id="btnGuardar" disabled style="max-width:320px;">💾 Guardar mockup 360° en el ticket</button>
     <p class="msj" id="msjGuardar"></p>
+  </section>
+
+  <section class="card solo-invitado" id="seccionInvitado" style="grid-column:1 / -1;">
+    <h3>Envíanos tu diseño</h3>
+    <input class="campo" id="invNombre" maxlength="60" placeholder="Tu nombre o el de tu empresa" autocomplete="name">
+    <textarea class="campo" id="invComentario" maxlength="300" rows="2" placeholder="¿Algo que debamos saber? (cantidad, fecha, tallas…) — opcional"></textarea>
+    <button class="btn btn-principal" id="btnEnviarWA" disabled style="max-width:360px;">💬 Enviar por WhatsApp</button>
+    <p class="msj" id="msjInvitado"></p>
+    <div id="waListo"></div>
+  </section>
+
+  <section class="card solo-verinv" id="seccionLogos" style="grid-column:1 / -1;">
+    <h3>Logos a emplear</h3>
+    <p id="datosCliente" style="margin:0 0 12px;line-height:1.5;"></p>
+    <div class="grid-cap" id="gridLogos"></div>
   </section>
 
   <section class="card capturas" id="seccionCapturas" style="display:none;">
@@ -147,17 +172,23 @@
     construirUI();
     let receta = null;
     if (EMBED) { try { receta = await cargarRecetaTicket(); } catch (e) { console.error(e); setEstado('No se pudo leer el mockup del ticket'); } }
+    else if (modo === 'verInv') { try { receta = await cargarRecetaInvitado(); } catch (e) { console.error(e); setEstado('No se pudo abrir el diseño'); } }
     if (ok) await elegirPrenda(receta && MODELOS[receta.prenda] ? receta.prenda : 'playera');
     if (EMBED && modo === 'ver' && !receta) setEstado('Este ticket aún no tiene mockup 360°');
+    if (modo === 'invitado') { habilitarCaptura(cargada); }
   }
 
   // ---------- modo incrustado (dentro del CRM) ----------
   // El CRM abre esta página en un iframe y le manda por postMessage el token de sesión y el ticket.
   // 'ver' = solo girar y descargar vistas; 'editar' = Diseñador/Administrador.
-  const EMBED = new URLSearchParams(location.search).get('embed') === '1';
-  let modo = 'libre', ctxCRM = null;
+  const QS = new URLSearchParams(location.search);
+  const EMBED = QS.get('embed') === '1', INVITADO = QS.get('invitado') === '1', TOKEN_D = QS.get('d') || '';
+  const API_URL = 'https://script.google.com/macros/s/AKfycbzWPgI3xBLFrmRjeudvOCo5bzd4KildNG5jy9HQVVxkJjnrSHINt4XNmUA6AJ_M9xI9/exec';
+  const WHATSAPP_EMPRESA = '522295735503';   // +52 229 573 5503
+  let modo = 'libre', ctxCRM = null, recetaVista = null;
   async function api(accion, datos) {
-    const r = await fetch(ctxCRM.apiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ accion, datos: Object.assign({ sesionToken: ctxCRM.token }, datos) }) });
+    const url = ctxCRM ? ctxCRM.apiUrl : API_URL, extra = ctxCRM ? { sesionToken: ctxCRM.token } : {};
+    const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ accion, datos: Object.assign(extra, datos) }) });
     return r.json();
   }
   function esperarInit() {
@@ -174,7 +205,20 @@
     const r = await api('obtenerMockup3d', { id: ctxCRM.ticketId });
     if (r && r.sesionInvalida) throw new Error('Sesión no válida');
     if (!r || r.exito === false) throw new Error((r && r.mensaje) || 'Error');
-    const rec = r.receta; if (!rec) return null;
+    return aplicarReceta(r.receta);
+  }
+  async function cargarRecetaInvitado() {
+    const r = await api('obtenerDisenoInvitado', { token: TOKEN_D });
+    if (!r || r.exito !== true) { setEstado((r && r.mensaje) || 'No se pudo abrir el diseño'); return null; }
+    $('datosCliente').innerHTML = (r.nombre ? '<strong>' + esc(r.nombre) + '</strong>' : 'Cliente invitado') + (r.fecha ? ' · ' + new Date(r.fecha).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) : '') + (r.comentario ? '<br>' + esc(r.comentario) : '');
+    const rec = await aplicarReceta(r.receta); recetaVista = r.receta;
+    $('gridLogos').innerHTML = Object.keys(r.receta.lados || {}).map(l => { const z = r.receta.lados[l], src = 'data:' + z.mimeType + ';base64,' + z.base64, ext = z.mimeType.split('/')[1].replace('jpeg', 'jpg');
+      return `<div class="cap"><img src="${src}" alt="Logo ${l}" style="background:repeating-conic-gradient(#eee 0 25%,#fff 0 50%) 0 0/16px 16px"><div><span style="text-transform:capitalize">${l}</span><a href="${src}" download="logo-${l.replace(/\s+/g, '-')}.${ext}">Descargar</a></div></div>`; }).join('') || '<p>Este diseño no trae logos.</p>';
+    return rec;
+  }
+  const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  async function aplicarReceta(rec) {
+    if (!rec) return null;
     if (/^#[0-9a-fA-F]{6}$/.test(rec.color || '')) color = rec.color;
     if (rec.fondo) { fondo = rec.fondo; cambiarFondo(fondo); }
     if (MODELOS[rec.prenda]) {
@@ -207,6 +251,25 @@
   }
   const blobABase64 = blob => new Promise((res, rej) => { const f = new FileReader(); f.onload = () => res(String(f.result).split(',')[1]); f.onerror = rej; f.readAsDataURL(blob); });
   const msj = (t, ok) => { const m = $('msjGuardar'); m.textContent = t; m.className = 'msj ' + (ok ? 'ok' : 'err'); };
+
+  async function enviarWhatsApp() {
+    const b = $('btnEnviarWA'), m = $('msjInvitado'); m.textContent = ''; m.className = 'msj';
+    const lados = {};
+    try {
+      Object.keys(MODELOS[prenda].lados).forEach(l => { const s = getSlot(prenda, l); if (s) lados[l] = Object.assign({ cm: s.cm, dx: s.dx, dy: s.dy, rot: s.rot }, arteABase64(s.img)); });
+      if (!Object.keys(lados).length) throw new Error('Sube al menos un logo antes de enviar.');
+      b.disabled = true; b.textContent = 'Enviando…';
+      const nombre = $('invNombre').value.trim();
+      const r = await api('guardarDisenoInvitado', { nombre, comentario: $('invComentario').value.trim(), receta: { prenda, color, fondo, lados } });
+      if (!r || r.exito !== true) throw new Error((r && r.mensaje) || 'No se pudo enviar el diseño.');
+      const enlace = location.origin + location.pathname + '?d=' + r.token;
+      const texto = 'Hola' + (nombre ? ', soy ' + nombre : '') + '. Este es mi diseño en 360° y estos son los logos a emplear (' + MODELOS[prenda].nombre.toLowerCase() + '):\n' + enlace;
+      const wa = 'https://wa.me/' + WHATSAPP_EMPRESA + '?text=' + encodeURIComponent(texto);
+      $('waListo').innerHTML = '<p class="msj ok">¡Listo! Tu diseño quedó guardado. Falta un paso: toca el botón para mandárnoslo por WhatsApp.</p><a class="wa-link" href="' + wa + '" target="_blank" rel="noopener">💬 Abrir WhatsApp</a>';
+      try { window.open(wa, '_blank', 'noopener'); } catch (e) {}
+    } catch (e) { console.error(e); m.textContent = e.message || 'Error al enviar.'; m.className = 'msj err'; }
+    b.disabled = false; b.textContent = '💬 Enviar por WhatsApp';
+  }
 
   async function guardarEnTicket() {
     if (modo !== 'editar') return;
@@ -255,6 +318,7 @@
     $('btnCapturar').onclick = () => capturar($('btnCapturar'));
     $('btnCapturarVisor').onclick = () => capturar($('btnCapturarVisor'));
     $('btnGuardar').onclick = guardarEnTicket;
+    $('btnEnviarWA').onclick = enviarWhatsApp;
     $('btnTodas').onclick = () => ultimasCapturas.forEach((c, i) => setTimeout(() => descargar(c.url, c.nombre), i * 350));
     cambiarFondo(fondo);
     marcarActivos();
@@ -285,15 +349,32 @@
   function cambiarColor(c) { color = c; marcarActivos(); repintar(); }
 
   // ---------- arte ----------
-  function cargarArte(file) {
+  // Rasteriza el archivo a un PNG de tamaño controlado: así funciona igual con SVG (que a veces no
+  // trae tamaño propio) y con imágenes enormes, y el arte guardado ya sale optimizado.
+  async function rasterizarArte(file) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await cargarImg(url), svg = file.type === 'image/svg+xml' || /\.svg$/i.test(file.name);
+      let w = img.naturalWidth, h = img.naturalHeight; if (!w || !h) { w = 1024; h = 1024; }
+      const k = svg ? 1024 / Math.max(w, h) : Math.min(1, 1536 / Math.max(w, h));
+      const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      return await cargarImg(c.toDataURL('image/png'));
+    } finally { URL.revokeObjectURL(url); }
+  }
+  async function cargarArte(file) {
     if (!file) return;
-    const url = URL.createObjectURL(file), img = new Image();
-    img.onload = () => {
+    try {
+      const img = await rasterizarArte(file);
       estado[prenda] = estado[prenda] || {};
       estado[prenda][lado] = { img, cm: (MODELOS[prenda].lados[lado] && MODELOS[prenda].lados[lado].cmDefecto) || 28, dx: 0, dy: 0, rot: 0 };
       refrescarControles(); repintar();
-    };
-    img.src = url; $('archivoArte').value = '';
+    } catch (e) {
+      console.error('Arte no legible', e);
+      $('ayudaLado').textContent = '⚠️ No se pudo leer «' + file.name + '». Usa PNG, JPG, WebP o SVG (HEIC, PDF, AI o EPS no funcionan: expórtalo como PNG).';
+      setEstado('No se pudo leer la imagen');
+    }
+    $('archivoArte').value = '';
   }
   function refrescarControles() {
     const s = getSlot(), m = MODELOS[prenda];
@@ -359,7 +440,7 @@
   // ---------- capturas ----------
   const VISTAS = [['frente', '0deg 75deg 105%'], ['tres-cuartos', '35deg 72deg 105%'], ['lateral', '90deg 75deg 105%'], ['espalda', '180deg 75deg 105%']];
   const espera = ms => new Promise(r => setTimeout(r, ms));
-  function habilitarCaptura(v) { ['btnCapturar','btnCapturarVisor'].forEach(id => $(id).disabled = !v); if (modo === 'editar') $('btnGuardar').disabled = !v; }
+  function habilitarCaptura(v) { ['btnCapturar','btnCapturarVisor'].forEach(id => $(id).disabled = !v); if (modo === 'editar') $('btnGuardar').disabled = !v; if (modo === 'invitado') $('btnEnviarWA').disabled = !v; }
   async function capturar(b) {
     b = b || $('btnCapturar'); const txt = b.textContent; b.disabled = true; b.textContent = 'Capturando…';
     const giroAntes = mv.hasAttribute('auto-rotate'); mv.removeAttribute('auto-rotate');
@@ -381,7 +462,12 @@
   }
   function descargar(url, nombre) { const a = document.createElement('a'); a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove(); }
 
-  if (EMBED) esperarInit().then(init => { aModoEmbed(init); iniciar(); }); else iniciar();
+  if (EMBED) esperarInit().then(init => { aModoEmbed(init); iniciar(); });
+  else {
+    if (INVITADO) { modo = 'invitado'; document.body.classList.add('invitado'); $('tituloPagina').textContent = 'Diseña tu prenda'; $('pillPagina').textContent = 'Invitado'; document.title = 'Diseña tu prenda en 360° · Euro'; }
+    else if (TOKEN_D) { modo = 'verInv'; document.body.classList.add('ver', 'verinv'); $('tituloPagina').textContent = 'Diseño de cliente'; $('pillPagina').textContent = '360°'; document.title = 'Diseño de cliente · Euro'; }
+    iniciar();
+  }
 })();
 </script>
 </body>
