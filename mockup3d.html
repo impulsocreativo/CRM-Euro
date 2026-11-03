@@ -122,7 +122,7 @@
     // ¿hay librería? (módulo local; si no existe, avisamos con instrucciones claras)
     const ok = await Promise.race([ customElements.whenDefined('model-viewer').then(() => true), new Promise(r => { const t0 = Date.now(), iv = setInterval(() => { if (window.__sinLib || Date.now() - t0 > 6000) { clearInterval(iv); r(false); } }, 150); }) ]);
     if (!ok) { $('avisoLibreria').style.display = 'block'; setEstado('Falta la librería 360°'); }
-    try { MODELOS = await (await fetch('assets/models/modelos.json')).json(); }
+    try { MODELOS = await (await fetch('assets/models/modelos.json?t=' + Date.now(), { cache: 'no-store' })).json(); }
     catch (e) { setEstado('No se pudo leer assets/models/modelos.json (abre la página desde un servidor, no como archivo)'); return; }
     construirUI();
     if (ok) await elegirPrenda('playera');
@@ -156,7 +156,7 @@
     marcarActivos(); refrescarControles();
     const m = MODELOS[id]; setEstado('Cargando ' + m.nombre.toLowerCase() + '…');
     canvas.width = m.lienzo[0]; canvas.height = m.lienzo[1];
-    await new Promise(res => { const f = () => { mv.removeEventListener('load', f); res(); }; mv.addEventListener('load', f); mv.src = 'assets/models/' + m.archivo; });
+    await new Promise(res => { const f = () => { mv.removeEventListener('load', f); res(); }; mv.addEventListener('load', f); mv.src = 'assets/models/' + m.archivo + (m.v ? '?v=' + m.v : ''); });
     cargada = true; $('btnCapturar').disabled = false; setEstado(m.nombre);
     $('credito').innerHTML = m.creditoUrl ? `Modelo <a href="${m.creditoUrl}" target="_blank" rel="noopener">«T Shirt»</a> de ${m.creditoAutor}, licencia <a href="${m.licenciaUrl}" target="_blank" rel="noopener">${m.licencia}</a>. Simplificado y adaptado para CRM Euro.` : 'Modelo de prueba (sin textura real).';
     mv.cameraOrbit = m.lados.frente.camara; if (mv.jumpCameraToGoal) mv.jumpCameraToGoal();
