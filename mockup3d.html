@@ -90,7 +90,8 @@
         <div class="fila"><span>Ancho (cm)</span><input type="range" id="rCm" min="4" max="45" step="0.5"><output id="oCm"></output></div>
         <div class="fila"><span>Horizontal</span><input type="range" id="rX" min="-25" max="25" step="0.5"><output id="oX"></output></div>
         <div class="fila"><span>Vertical</span><input type="range" id="rY" min="-30" max="30" step="0.5"><output id="oY"></output></div>
-        <div class="fila"><span>Giro</span><input type="range" id="rRot" min="-45" max="45" step="1"><output id="oRot"></output></div>
+        <div class="fila"><span>Giro</span><input type="range" id="rRot" min="-180" max="180" step="1"><output id="oRot"></output></div>
+        <div class="fila" id="rotRapido" style="justify-content:flex-end;gap:6px;"><button class="opt" data-r="-90" style="padding:5px 12px">−90°</button><button class="opt" data-r="0" style="padding:5px 12px">0°</button><button class="opt" data-r="90" style="padding:5px 12px">+90°</button><button class="opt" data-r="180" style="padding:5px 12px">180°</button></div>
         <button class="btn btn-sec" id="btnQuitar">Quitar arte de este lado</button>
       </div>
       <p class="ayuda" id="ayudaLado"></p>
@@ -147,6 +148,7 @@
     $('opsLado').onclick = e => { let b = e.target.closest('[data-l]'); if (b) elegirLado(b.dataset.l); };
     $('archivoArte').onchange = e => cargarArte(e.target.files[0]);
     ['rCm','rX','rY','rRot'].forEach(id => $(id).oninput = () => leerControles());
+    $('rotRapido').onclick = e => { const x = e.target.closest('[data-r]'); if (x) { $('rRot').value = x.dataset.r; leerControles(); } };
     $('btnQuitar').onclick = () => { if (estado[prenda]) delete estado[prenda][lado]; refrescarControles(); repintar(); };
     $('giro').onchange = e => { mv.autoRotate = e.target.checked; if (e.target.checked) mv.setAttribute('auto-rotate', ''); else mv.removeAttribute('auto-rotate'); };
     $('btnCapturar').onclick = capturar;
