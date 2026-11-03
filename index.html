@@ -1984,6 +1984,7 @@ var qrcode = function() {
         <button class="nav-btn" id="menuMetricas" style="display:none;" onclick="cambiarVista('metricas')">📊 Métricas</button>
         <button class="nav-btn" id="menuPlanificador" style="display:none;" onclick="cambiarVista('planificador')">📅 Planificador</button>
         <button class="nav-btn" id="btnActivarNotificaciones" onclick="activarNotificaciones()">🔔 Activar Notificaciones</button>
+        <button class="nav-btn" id="btnEnlaceClientes" onclick="copiarEnlaceClientes()">🔗 Enlace para clientes</button>
         <button class="nav-btn" id="btnModoOscuro" onclick="toggleModoOscuro()">🌙 Modo Oscuro</button>
       </nav>
 
@@ -2363,7 +2364,7 @@ var qrcode = function() {
     // 10 minutos como respaldo. IMPORTANTE: sube esta constante cada vez que
     // subas cambios importantes, si no, esto no detecta nada nuevo.
     // =========================================================================
-    const APP_VERSION = "2026-11-03-01";
+    const APP_VERSION = "2026-11-03-02";
 
     async function revisarActualizacionDisponible() {
       try {
@@ -3091,6 +3092,13 @@ var qrcode = function() {
       return '<section class="dt-card"><h3 class="dt-card-titulo"><span class="dt-ico">📎</span>Archivos del ticket</h3><div class="dt-archivos' + (mostrarRef ? '' : ' dt-una-col') + '">' + colRef + colMock + '</div></section>';
     }
 
+    // Enlace público (sin usuario) donde el cliente arma su diseño 360° y lo manda por WhatsApp.
+    function copiarEnlaceClientes() {
+      let url = new URL('mockup3d.html?invitado=1', location.href).href, btn = document.getElementById('btnEnlaceClientes');
+      let listo = function() { btn.innerText = '✅ Enlace copiado'; setTimeout(function() { btn.innerText = '🔗 Enlace para clientes'; }, 2500); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(listo, function() { window.prompt('Copia este enlace:', url); });
+      else window.prompt('Copia este enlace:', url);
+    }
     function puedeEditar3d_() { return sesionActual && (sesionActual.rol === 'Diseñador' || sesionActual.rol === 'Administrador'); }
     function construirTarjeta3d_(t) {
       let edita = puedeEditar3d_();
