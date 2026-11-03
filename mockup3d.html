@@ -47,6 +47,8 @@
   .aviso { grid-column:1 / -1; background:#FFF1D6; border:1px solid #F6DDA5; color:#6E4A0A; border-radius:var(--radius); padding:16px 20px; display:none; line-height:1.5; }
   .aviso code { background:rgba(0,0,0,.06); padding:2px 6px; border-radius:6px; font-size:.9em; word-break:break-all; }
   details { grid-column:1 / -1; } summary { cursor:pointer; font-weight:800; color:var(--muted); font-size:.85em; }
+  .sw.fondo-transp { background:conic-gradient(#ccc 25%,#fff 0 50%,#ccc 0 75%,#fff 0) 0 0/12px 12px !important; }
+  .visor.fondo-transp { background:conic-gradient(#e4e4e4 25%,#fff 0 50%,#e4e4e4 0 75%,#fff 0) 0 0/18px 18px !important; }
   #lienzo { width:100%; border:1px solid var(--line); border-radius:8px; margin-top:10px; background:#fff; }
   @media (max-width:900px) { .wrap { grid-template-columns:1fr; padding:0 14px 40px; } model-viewer { height:56vh; min-height:320px; } }
 </style>
@@ -75,6 +77,10 @@
     <section class="card"><h3>1 · Prenda</h3><div class="opciones" id="opsPrenda"></div></section>
     <section class="card"><h3>2 · Color de la prenda</h3>
       <div class="colores" id="colores"></div>
+    </section>
+    <section class="card"><h3>Color de fondo</h3>
+      <div class="colores" id="fondos"></div>
+      <p style="margin:8px 0 0;font-size:.78em;color:var(--muted);">Se aplica al visor y a las capturas. «Transparente» guarda el PNG sin fondo.</p>
     </section>
     <section class="card"><h3>3 · Estampado o bordado</h3>
       <div class="opciones" id="opsLado" style="margin-bottom:10px;"></div>
@@ -133,6 +139,10 @@
     $('opsPrenda').onclick = e => { let b = e.target.closest('[data-p]'); if (b) elegirPrenda(b.dataset.p); };
     $('colores').innerHTML = COLORES.map(c => `<button class="sw" data-c="${c}" style="background:${c}" aria-label="Color ${c}"></button>`).join('') + '<input type="color" id="colorLibre" value="#ffffff" aria-label="Otro color">';
     $('colores').onclick = e => { let b = e.target.closest('[data-c]'); if (b) cambiarColor(b.dataset.c); };
+    const FONDOS = [['crema','#F6EDE2'],['blanco','#FFFFFF'],['gris','#D9D9D9'],['negro','#1E1E1E'],['transp','transparent']];
+    $('fondos').innerHTML = FONDOS.map(([n,c]) => `<button class="sw ${n==='transp'?'fondo-transp':''}" data-f="${c}" title="${n}" style="background:${c}" aria-label="Fondo ${n}"></button>`).join('') + '<input type="color" id="fondoLibre" value="#F6EDE2" aria-label="Otro color de fondo">';
+    $('fondos').onclick = e => { let b = e.target.closest('[data-f]'); if (b) cambiarFondo(b.dataset.f); };
+    $('fondoLibre').oninput = e => cambiarFondo(e.target.value);
     $('colorLibre').oninput = e => cambiarColor(e.target.value);
     $('opsLado').onclick = e => { let b = e.target.closest('[data-l]'); if (b) elegirLado(b.dataset.l); };
     $('archivoArte').onchange = e => cargarArte(e.target.files[0]);
@@ -141,6 +151,7 @@
     $('giro').onchange = e => { mv.autoRotate = e.target.checked; if (e.target.checked) mv.setAttribute('auto-rotate', ''); else mv.removeAttribute('auto-rotate'); };
     $('btnCapturar').onclick = capturar;
     $('btnTodas').onclick = () => ultimasCapturas.forEach((c, i) => setTimeout(() => descargar(c.url, c.nombre), i * 350));
+    cambiarFondo(fondo);
     marcarActivos();
   }
 
@@ -223,6 +234,23 @@
     if (pendiente) { pendiente = false; aplicarTextura(); }
   }
 
+  // ---------- fondo ----------
+  let fondo = '#F6EDE2';
+  function cambiarFondo(c) {
+    fondo = c; const v = document.querySelector('.visor');
+    v.classList.toggle('fondo-transp', c === 'transparent');
+    v.style.background = c === 'transparent' ? '' : (c === '#F6EDE2' ? 'radial-gradient(circle at 50% 35%,#fff 0%,#F6EDE2 100%)' : c);
+    document.querySelectorAll('#fondos .sw').forEach(b => b.classList.toggle('activo', b.dataset.f === c));
+  }
+  async function conFondo(blob) {
+    if (fondo === 'transparent') return blob;
+    const img = await createImageBitmap(blob), cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height;
+    const g = cv.getContext('2d');
+    if (fondo === '#F6EDE2') { const gr = g.createRadialGradient(cv.width/2, cv.height*.35, 0, cv.width/2, cv.height*.35, Math.max(cv.width, cv.height)*.75); gr.addColorStop(0, '#fff'); gr.addColorStop(1, '#F6EDE2'); g.fillStyle = gr; } else g.fillStyle = fondo;
+    g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0);
+    return await new Promise(r => cv.toBlob(r, 'image/png'));
+  }
+
   // ---------- capturas ----------
   const VISTAS = [['frente', '0deg 75deg 105%'], ['tres-cuartos', '35deg 72deg 105%'], ['lateral', '90deg 75deg 105%'], ['espalda', '180deg 75deg 105%']];
   const espera = ms => new Promise(r => setTimeout(r, ms));
@@ -235,7 +263,7 @@
       for (const [nombre, orbita] of VISTAS) {
         mv.cameraOrbit = orbita; if (mv.jumpCameraToGoal) mv.jumpCameraToGoal();
         await espera(350);
-        const blob = await mv.toBlob({ mimeType: 'image/png', idealAspect: true });
+        const blob = await conFondo(await mv.toBlob({ mimeType: 'image/png', idealAspect: true }));
         ultimasCapturas.push({ url: URL.createObjectURL(blob), nombre: `mockup-${prenda}-${nombre}.png`, etiqueta: nombre });
       }
     } catch (e) { console.error(e); setEstado('No se pudieron capturar las vistas'); }
