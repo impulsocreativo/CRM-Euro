@@ -174,7 +174,7 @@
     const url = URL.createObjectURL(file), img = new Image();
     img.onload = () => {
       estado[prenda] = estado[prenda] || {};
-      estado[prenda][lado] = { img, cm: 28, dx: 0, dy: 0, rot: 0 };
+      estado[prenda][lado] = { img, cm: (MODELOS[prenda].lados[lado] && MODELOS[prenda].lados[lado].cmDefecto) || 28, dx: 0, dy: 0, rot: 0 };
       refrescarControles(); repintar();
     };
     img.src = url; $('archivoArte').value = '';
@@ -183,7 +183,7 @@
     const s = getSlot(), m = MODELOS[prenda];
     $('controlesArte').style.display = s ? 'block' : 'none';
     $('zonaArte').textContent = s ? '🔁 Cambiar arte de este lado' : '📎 Subir arte (PNG con fondo transparente es lo ideal)';
-    $('ayudaLado').textContent = m && m.tipo === 'gorra' ? 'En gorras el arte se curva con la cúpula; los tamaños son aproximados en este prototipo.' : 'Lado actual: ' + lado + '. Cada lado guarda su propio arte.';
+    $('ayudaLado').textContent = lado.indexOf('manga') === 0 ? 'Manga izquierda y derecha son las de quien usa la prenda. Empieza con ~8 cm; ajusta el tamaño con el control de ancho.' : m && m.tipo === 'gorra' ? 'En gorras el arte se curva con la cúpula; los tamaños son aproximados en este prototipo.' : 'Lado actual: ' + lado + '. Cada lado guarda su propio arte.';
     if (s) { $('rCm').value = s.cm; $('rX').value = s.dx; $('rY').value = s.dy; $('rRot').value = s.rot; etiquetas(); }
   }
   function etiquetas() { $('oCm').textContent = $('rCm').value + ' cm'; $('oX').textContent = $('rX').value + ' cm'; $('oY').textContent = $('rY').value + ' cm'; $('oRot').textContent = $('rRot').value + '°'; }
